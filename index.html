@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Floor — the system tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Floor">
+<meta name="theme-color" content="#fafaf7">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  :root{
+    --bg:#fafaf7; --card:#ffffff; --ink:#191919; --sub:#8a8a84; --line:#e8e8e2;
+    --full:#191919; --maint:#9a9a92; --floor:#d8d8d0; --zero:#c0392b; --good:#1a7f4e;
+    --r:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#121210; --card:#1c1c19; --ink:#ecece6; --sub:#8a8a82; --line:#2c2c27;
+      --full:#ecece6; --maint:#6f6f67; --floor:#3a3a34; --zero:#e06050; --good:#4dbb85; }
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:620px; margin:0 auto; padding:36px 20px 80px}
+  header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:26px}
+  h1{font-size:17px; font-weight:650; letter-spacing:-.01em}
+  h1 span{color:var(--sub); font-weight:400}
+  .streak{font-size:13px; color:var(--sub)}
+  .streak b{color:var(--ink); font-weight:650}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r);
+    padding:20px; margin-bottom:14px}
+  .label{font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--sub);
+    font-weight:600; margin-bottom:12px}
+  .banner{border-radius:var(--r); padding:12px 16px; font-size:13.5px; margin-bottom:14px;
+    border:1px solid var(--line); background:var(--card)}
+  .banner.alert{border-color:color-mix(in srgb, var(--zero) 40%, transparent); color:var(--zero)}
+  .banner.calm{color:var(--sub)}
+  /* tier segmented control */
+  .tiers{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  .tier{border:1px solid var(--line); border-radius:10px; padding:10px 4px; text-align:center;
+    cursor:pointer; background:transparent; color:var(--ink); font-size:13px; font-weight:550;
+    transition:all .12s ease; font-family:inherit}
+  .tier small{display:block; font-size:10.5px; color:var(--sub); font-weight:400; margin-top:2px}
+  .tier.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+  .tier.sel small{color:var(--bg); opacity:.65}
+  .tier.sel.zero{background:var(--zero); border-color:var(--zero); color:#fff}
+  .tier.sel.zero small{color:#fff}
+  /* checks */
+  .checks{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
+  .chk{border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:13px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit; transition:all .12s}
+  .chk.on{background:var(--card); color:var(--ink); border-color:var(--ink)}
+  .chk.on::before{content:"✓ "; color:var(--good)}
+  input[type=text], textarea, input[type=date], select{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-size:14px; font-family:inherit; background:transparent; color:var(--ink);
+    outline:none; resize:none}
+  input:focus, textarea:focus{border-color:var(--sub)}
+  .field{margin-top:14px}
+  .field .hint{font-size:11.5px; color:var(--sub); margin-bottom:6px}
+  .row{display:flex; gap:10px; align-items:center}
+  /* tomorrow */
+  .tomorrow{display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:14px;
+    border-top:1px solid var(--line)}
+  .tomorrow .hint{font-size:12px; color:var(--sub); flex:1}
+  .pills{display:flex; gap:6px}
+  .pill{border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit}
+  .pill.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+  /* horizons */
+  .hz{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px}
+  .hz div{text-align:center; padding:6px 2px}
+  .hz .num{font-size:22px; font-weight:650; letter-spacing:-.02em}
+  .hz .cap{font-size:11px; color:var(--sub); margin-top:2px}
+  .bar{height:3px; background:var(--line); border-radius:2px; margin-top:8px; overflow:hidden}
+  .bar i{display:block; height:100%; background:var(--ink); border-radius:2px}
+  /* heatmap */
+  .heat{display:grid; grid-template-columns:repeat(7,1fr); gap:5px}
+  .cell{aspect-ratio:1; border-radius:5px; background:var(--line); opacity:.5}
+  .cell.full{background:var(--full); opacity:1}
+  .cell.maintenance{background:var(--maint); opacity:1}
+  .cell.floor{background:var(--floor); opacity:1}
+  .cell.zero{background:transparent; border:1.5px solid var(--zero); opacity:1}
+  .cell.today{outline:2px solid var(--sub); outline-offset:1.5px}
+  .legend{display:flex; gap:14px; margin-top:12px; font-size:11px; color:var(--sub)}
+  .legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; vertical-align:-1px}
+  /* insights */
+  .insight{padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px}
+  .insight:last-child{border-bottom:none; padding-bottom:0}
+  .insight .tag{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--sub); display:block; margin-bottom:2px}
+  .locked{color:var(--sub); font-size:13px}
+  /* parking lot */
+  .park-item{display:flex; justify-content:space-between; gap:10px; padding:9px 0;
+    border-bottom:1px solid var(--line); font-size:13.5px}
+  .park-item:last-child{border-bottom:none}
+  .park-item .d{color:var(--sub); font-size:12px; white-space:nowrap}
+  .park-item .hear{color:var(--good); font-size:11px}
+  .park-item button{background:none; border:none; color:var(--sub); cursor:pointer; font-size:14px}
+  /* footer */
+  .ft{display:flex; gap:10px; justify-content:center; margin-top:24px}
+  .btn{border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:999px;
+    padding:7px 16px; font-size:12.5px; cursor:pointer; font-family:inherit}
+  .btn:hover{color:var(--ink); border-color:var(--sub)}
+  .note{text-align:center; font-size:11.5px; color:var(--sub); margin-top:16px}
+  .compass-line{font-size:13.5px; font-style:italic; color:var(--sub); text-align:center;
+    margin-bottom:26px; line-height:1.5}
+  .saved{position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--bg); font-size:12px; padding:6px 14px;
+    border-radius:999px; opacity:0; transition:opacity .25s; pointer-events:none}
+  .saved.show{opacity:1}
+  .crunch-row{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--sub)}
+  .crunch-row input[type=date]{width:auto; padding:5px 8px; font-size:12.5px}
+  /* iPhone polish */
+  @media (max-width:480px){
+    .wrap{padding:20px 14px calc(70px + env(safe-area-inset-bottom))}
+    body{padding-top:env(safe-area-inset-top)}
+    input[type=text], textarea{font-size:16px}   /* prevents iOS focus-zoom */
+    .tier{padding:12px 4px}                       /* bigger tap targets */
+    .chk{padding:10px 16px}
+    .hz .num{font-size:19px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Floor <span>— the system</span></h1>
+    <div class="streak" id="streak"></div>
+  </header>
+
+  <div class="compass-line">Depth is the bet. The floor never breaks.<br>Pivots happen only at quarterly reviews, in writing.</div>
+
+  <div id="banners"></div>
+
+  <!-- TODAY -->
+  <div class="card">
+    <div class="label" id="todayLabel">Today</div>
+    <div class="tiers" id="tiers"></div>
+    <div class="checks" id="checks"></div>
+    <div class="field">
+      <div class="hint">Decision journal — one call you made today, and why</div>
+      <textarea id="journal" rows="2" placeholder="e.g. Passed on X because…"></textarea>
+    </div>
+    <div class="field" id="shipField" style="display:none">
+      <div class="hint">Sunday — what did you ship this week?</div>
+      <input type="text" id="ship" placeholder="Memo section, model tab, 500-word write-up…">
+    </div>
+    <div class="tomorrow">
+      <div class="hint">Tomorrow's tier — decide tonight, not tomorrow morning</div>
+      <div class="pills" id="tomorrowPills"></div>
+    </div>
+  </div>
+
+  <!-- HORIZONS -->
+  <div class="card">
+    <div class="label">Horizons</div>
+    <div class="hz" id="horizons"></div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="card">
+    <div class="label">Last 8 weeks</div>
+    <div class="heat" id="heat"></div>
+    <div class="legend">
+      <span><i style="background:var(--full)"></i>Full</span>
+      <span><i style="background:var(--maint)"></i>Maintenance</span>
+      <span><i style="background:var(--floor)"></i>Floor</span>
+      <span><i style="border:1.5px solid var(--zero); background:transparent"></i>Zero</span>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="card">
+    <div class="label">What your data says</div>
+    <div id="insights"></div>
+  </div>
+
+  <!-- PARKING LOT -->
+  <div class="card">
+    <div class="label">Parking lot — shiny things wait for the quarterly</div>
+    <input type="text" id="parkInput" placeholder="New idea / pivot itch — write it, release it">
+    <div id="parkList" style="margin-top:6px"></div>
+  </div>
+
+  <!-- CRUNCH -->
+  <div class="card">
+    <div class="label">Crunch mode</div>
+    <div class="crunch-row">
+      <button class="chk" id="crunchBtn"></button>
+      <span id="crunchInfo"></span>
+      <input type="date" id="crunchEnd" style="display:none">
+    </div>
+  </div>
+
+  <div class="ft">
+    <button class="btn" onclick="exportData()">Export backup</button>
+    <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+  </div>
+  <div class="note">All data lives on this device. No account, no server, no subscription.<br>Export a backup monthly — it takes two seconds.</div>
+</div>
+
+<div class="saved" id="saved">Saved</div>
+
+<script>
+"use strict";
+// ---------- storage ----------
+const K = { days:"floor.days", settings:"floor.settings", park:"floor.park" };
+const load = (k,d) => { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
+const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+
+let days = load(K.days, {});           // {"2026-07-06":{tier,train,deep,rep,journal,ship,next}}
+let settings = load(K.settings, {});   // {start, crunchEnd}
+let park = load(K.park, []);           // [{date,text}]
+
+// ---------- dates ----------
+const fmt = d => { const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); };
+const today = new Date(); const TK = fmt(today);
+const parse = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const dayDiff = (a,b) => Math.round((parse(b)-parse(a))/864e5);
+const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+if(!settings.start){ settings.start = TK; save(K.settings, settings); }
+
+// yesterday's chosen "next" is a reminder, never an auto-log
+const yk = fmt(addDays(today,-1));
+const plannedTier = (!days[TK] || !days[TK].tier) && days[yk] && days[yk].next ? days[yk].next : null;
+let d0 = days[TK] = days[TK] || {};
+
+// ---------- persistence ----------
+let saveT;
+function persist(){
+  save(K.days, days);
+  clearTimeout(saveT);
+  const s=document.getElementById("saved");
+  s.classList.add("show");
+  saveT=setTimeout(()=>s.classList.remove("show"), 900);
+  renderStreak(); renderHeat(); renderInsights(); renderBanners(); renderHorizons();
+}
+
+// ---------- today card ----------
+const TIERS = [
+  {id:"full", name:"Full", sub:"complete session"},
+  {id:"maintenance", name:"Maint.", sub:"30–40 min"},
+  {id:"floor", name:"Floor", sub:"10 min"},
+  {id:"zero", name:"Zero", sub:"missed"},
+];
+document.getElementById("todayLabel").textContent =
+  WD[today.getDay()] + ", " + today.toLocaleDateString(undefined,{month:"long",day:"numeric"});
+
+function renderTiers(){
+  const el=document.getElementById("tiers"); el.innerHTML="";
+  TIERS.forEach(t=>{
+    const b=document.createElement("button");
+    b.className="tier"+(d0.tier===t.id?" sel":"")+(t.id==="zero"?" zero":"");
+    b.innerHTML=t.name+"<small>"+t.sub+"</small>";
+    b.onclick=()=>{ d0.tier = d0.tier===t.id ? null : t.id; renderTiers(); persist(); };
+    el.appendChild(b);
+  });
+}
+const CHECKS=[ {id:"train",name:"Trained"}, {id:"deep",name:"Deep work"}, {id:"rep",name:"Community rep"} ];
+function renderChecks(){
+  const el=document.getElementById("checks"); el.innerHTML="";
+  CHECKS.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="chk"+(d0[c.id]?" on":"");
+    b.textContent=c.name;
+    b.onclick=()=>{ d0[c.id]=!d0[c.id]; renderChecks(); persist(); };
+    el.appendChild(b);
+  });
+}
+const jEl=document.getElementById("journal");
+jEl.value=d0.journal||"";
+jEl.oninput=()=>{ d0.journal=jEl.value; clearTimeout(jEl._t); jEl._t=setTimeout(persist,600); };
+
+// ship field on Sundays (or if already filled)
+const shipWrap=document.getElementById("shipField"), shipEl=document.getElementById("ship");
+if(today.getDay()===0 || d0.ship){ shipWrap.style.display="block"; shipEl.value=d0.ship||""; }
+shipEl.oninput=()=>{ d0.ship=shipEl.value; clearTimeout(shipEl._t); shipEl._t=setTimeout(persist,600); };
+
+function renderTomorrow(){
+  const el=document.getElementById("tomorrowPills"); el.innerHTML="";
+  ["full","maintenance","floor"].forEach(t=>{
+    const b=document.createElement("button");
+    b.className="pill"+(d0.next===t?" sel":"");
+    b.textContent=t==="maintenance"?"Maint.":t[0].toUpperCase()+t.slice(1);
+    b.onclick=()=>{ d0.next = d0.next===t?null:t; renderTomorrow(); persist(); };
+    el.appendChild(b);
+  });
+}
+
+// ---------- streak ----------
+function nonZero(k){ const d=days[k]; return d && d.tier && d.tier!=="zero"; }
+function streakCount(){
+  let n=0, cur=new Date(today);
+  if(!nonZero(TK)) cur=addDays(cur,-1);          // today not logged yet doesn't break it
+  while(nonZero(fmt(cur))){ n++; cur=addDays(cur,-1); }
+  return n;
+}
+function bestStreak(){
+  const keys=Object.keys(days).filter(nonZero).sort();
+  let best=0,run=0,prev=null;
+  keys.forEach(k=>{ run=(prev && dayDiff(prev,k)===1)?run+1:1; best=Math.max(best,run); prev=k; });
+  return best;
+}
+function renderStreak(){
+  const s=streakCount();
+  document.getElementById("streak").innerHTML =
+    s>0 ? "<b>"+s+"</b> non-zero day"+(s===1?"":"s") : "start today";
+}
+
+// ---------- banners ----------
+function crunchOn(){ return settings.crunchEnd && settings.crunchEnd >= TK; }
+function renderBanners(){
+  const el=document.getElementById("banners"); el.innerHTML="";
+  const add=(cls,txt)=>{ const b=document.createElement("div"); b.className="banner "+cls; b.textContent=txt; el.appendChild(b); };
+  const y=days[yk];
+  if(y && y.tier==="zero" && (!d0.tier || d0.tier==="zero"))
+    add("alert","Yesterday was a zero. Today is a floor day — never miss twice, never repay debt.");
+  else if(plannedTier && !d0.tier)
+    add("calm","Last night you planned a "+plannedTier+" day. Execute the pre-made decision — don't renegotiate it.");
+  if(crunchOn())
+    add("calm","Crunch mode until "+settings.crunchEnd+". Floor days count as full compliance. Zero guilt.");
+  // first Sunday of month → compass reminder
+  if(today.getDay()===0 && today.getDate()<=7)
+    add("calm","First Sunday — reread the compass before the weekly review.");
+}
+
+// ---------- horizons ----------
+function nextQuarterly(){
+  const months=[9,0,3,6]; // Oct, Jan, Apr, Jul
+  for(let i=0;i<8;i++){
+    const m=(today.getMonth()+i)%12, y=today.getFullYear()+Math.floor((today.getMonth()+i)/12);
+    if(months.includes(m)){
+      // first Sunday of that month
+      const d=new Date(y,m,1); while(d.getDay()!==0) d.setDate(d.getDate()+1);
+      if(d>=today) return d;
+    }
+  }
+}
+function renderHorizons(){
+  const start=settings.start;
+  const dayN=dayDiff(start,TK)+1;
+  const block=Math.floor((dayN-1)/56), inBlock=((dayN-1)%56)+1;   // rolling 8-week blocks
+  const best=Math.max(bestStreak(),streakCount());
+  const q=nextQuarterly(), qd=Math.ceil((q-today)/864e5);
+  const goal=new Date(2028,6,1), gd=Math.max(0,Math.ceil((goal-today)/864e5));
+  const total=dayDiff(start,"2028-07-01");
+  const el=document.getElementById("horizons");
+  el.innerHTML=`
+    <div><div class="num">${inBlock}<span style="font-size:13px;color:var(--sub)">/56</span></div>
+      <div class="cap">Short — block ${block+1}</div>
+      <div class="bar"><i style="width:${Math.round(inBlock/56*100)}%"></i></div></div>
+    <div><div class="num">${qd}<span style="font-size:13px;color:var(--sub)">d</span></div>
+      <div class="cap">Long — next quarterly<br>${q.toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div>
+    <div><div class="num">${gd}<span style="font-size:13px;color:var(--sub)">d</span></div>
+      <div class="cap">Longest — July 2028</div>
+      <div class="bar"><i style="width:${Math.min(100,Math.round(dayN/total*100))}%"></i></div></div>`;
+  // habit note under horizons
+  if(best<60){
+    const n=document.createElement("div");
+    n.style.cssText="grid-column:1/-1;text-align:center;font-size:12px;color:var(--sub);margin-top:10px";
+    n.textContent="Longest streak: "+best+" — the 60-day habit line is "+(60-best)+" days away.";
+    el.appendChild(n);
+  }
+}
+
+// ---------- heatmap (last 8 weeks, ends today) ----------
+function renderHeat(){
+  const el=document.getElementById("heat"); el.innerHTML="";
+  const end=addDays(today, 6-today.getDay());           // end of this week (Sat)
+  const start=addDays(end,-55);
+  for(let i=0;i<56;i++){
+    const d=addDays(start,i), k=fmt(d);
+    const c=document.createElement("div");
+    c.className="cell";
+    const rec=days[k];
+    if(d<=today && rec && rec.tier) c.classList.add(rec.tier);
+    if(k===TK) c.classList.add("today");
+    c.title=k+(rec&&rec.tier?" — "+rec.tier:"");
+    el.appendChild(c);
+  }
+}
+
+// ---------- insights engine (gets smarter with data) ----------
+function loggedKeys(){ return Object.keys(days).filter(k=>days[k].tier && k<=TK).sort(); }
+function renderInsights(){
+  const el=document.getElementById("insights"); el.innerHTML="";
+  const keys=loggedKeys(), n=keys.length;
+  const add=(tag,txt)=>{ const d=document.createElement("div"); d.className="insight";
+    d.innerHTML="<span class='tag'>"+tag+"</span>"+txt; el.appendChild(d); };
+
+  if(n<3){ el.innerHTML="<div class='locked'>Log 3 days to unlock your first pattern. 7 days unlocks weekday analysis. 21 days unlocks trend detection. The app can only get as smart as your logging is honest.</div>"; return; }
+
+  // level 1: distribution (3+ days)
+  const last30=keys.filter(k=>dayDiff(k,TK)<30);
+  const count=t=>last30.filter(k=>days[k].tier===t).length;
+  const nz=last30.filter(k=>days[k].tier!=="zero").length;
+  add("Consistency — last 30 days",
+    `<b>${nz}/${last30.length}</b> non-zero (${count("full")} full · ${count("maintenance")} maintenance · ${count("floor")} floor · ${count("zero")} zero).`);
+
+  // deep-work vs training balance
+  const dw=last30.filter(k=>days[k].deep).length, tr=last30.filter(k=>days[k].train).length;
+  if(tr>=3 && dw>=0 && tr-dw>=4)
+    add("Balance","Training is outpacing deep work ("+tr+" vs "+dw+" days). Body is the old comfort zone — the bet was building the same depth in the intellectual work.");
+  else if(dw-tr>=4)
+    add("Balance","Deep work is outpacing training ("+dw+" vs "+tr+" days). Don't let the floor break on the body side — that self-trust is load-bearing.");
+
+  // level 2: weekday analysis (7+ days)
+  if(n>=7){
+    const wd=Array.from({length:7},()=>({z:0,t:0}));
+    keys.forEach(k=>{ const g=parse(k).getDay(); wd[g].t++; if(days[k].tier==="zero"||days[k].tier==="floor") wd[g].z++; });
+    let worst=-1,rate=0;
+    wd.forEach((w,i)=>{ if(w.t>=2 && w.z/w.t>rate){ rate=w.z/w.t; worst=i; } });
+    if(worst>=0 && rate>=0.5)
+      add("Weekday pattern", WD[worst]+"s are your weakest ("+Math.round(rate*100)+"% floor-or-zero). Pre-plan "+WD[worst]+" as a maintenance day — pre-made decisions beat morning negotiations.");
+    else
+      add("Weekday pattern","No weak weekday yet — tiers are holding across the week.");
+    // shipping
+    const sundays=keys.filter(k=>parse(k).getDay()===0);
+    const shipped=sundays.filter(k=>days[k].ship && days[k].ship.trim()).length;
+    if(sundays.length>=2)
+      add("Shipping", shipped+"/"+sundays.length+" Sundays shipped. "+(shipped/sundays.length>=0.75?"The forcing function is working.":"Shipping weekly is the anti-velocity mechanism — a thin ship still counts."));
+  } else {
+    add("Locked", (7-n)+" more days unlock weekday-pattern analysis.");
+  }
+
+  // level 3: trend + design check (21+ days)
+  if(n>=21){
+    const last14=keys.filter(k=>dayDiff(k,TK)<14);
+    const low=last14.filter(k=>["floor","zero"].includes(days[k].tier)).length;
+    if(low>=10 && !crunchOn())
+      add("Design check","10+ of the last 14 days were floor-or-zero outside crunch mode. Per the playbook: that's a design problem, not a discipline problem — shrink the system at Sunday review instead of abandoning it.");
+    // momentum: compare last 14 vs previous 14
+    const score=k=>({full:3,maintenance:2,floor:1,zero:0})[days[k].tier]??0;
+    const prev14=keys.filter(k=>{const d=dayDiff(k,TK); return d>=14&&d<28;});
+    if(prev14.length>=7){
+      const a=last14.reduce((s,k)=>s+score(k),0)/Math.max(1,last14.length);
+      const b=prev14.reduce((s,k)=>s+score(k),0)/prev14.length;
+      const diff=a-b;
+      add("Momentum", diff>0.3?"Trending up — average tier is rising versus the prior two weeks.":
+        diff<-0.3?"Trending down versus the prior two weeks. Downshift deliberately (declare crunch or plan maintenance days) before the system downshifts for you.":
+        "Steady — average tier is flat versus the prior two weeks. Boring is the feature.");
+    }
+    // journal habit
+    const jr=last30.filter(k=>days[k].journal && days[k].journal.trim().length>10).length;
+    add("Judgment record", jr+"/"+last30.length+" days with a real journal entry. "+(jr/Math.max(1,last30.length)>=0.6?"The audit trail is building — this is what quiet confidence gets built from.":"The decision journal is the Mind pillar. One honest sentence beats a blank."));
+  } else if(n>=7){
+    add("Locked", (21-n)+" more days unlock trend detection and the design check.");
+  }
+
+  // level 4: 60+ days
+  if(n>=60){
+    const b=Math.max(bestStreak(),streakCount());
+    if(b>=60) add("60-day line","You've crossed the habit line you set. The system is no longer the scaffolding — it's you. Protect it like a varsity spot.");
+  }
+}
+
+// ---------- parking lot ----------
+const parkIn=document.getElementById("parkInput");
+parkIn.onkeydown=e=>{
+  if(e.key==="Enter" && parkIn.value.trim()){
+    park.unshift({date:TK, text:parkIn.value.trim()});
+    parkIn.value=""; save(K.park,park); renderPark();
+  }
+};
+function renderPark(){
+  const el=document.getElementById("parkList"); el.innerHTML="";
+  if(!park.length){ el.innerHTML="<div class='locked' style='padding-top:8px'>Empty. When the pivot itch hits: two minutes here, then back to the thread.</div>"; return; }
+  park.forEach((p,i)=>{
+    const row=document.createElement("div"); row.className="park-item";
+    const age=dayDiff(p.date,TK);
+    row.innerHTML=`<span style="flex:1">${p.text.replace(/</g,"&lt;")}${age>=28?" <span class='hear'>· earned a hearing at the quarterly</span>":""}</span>
+      <span class="d">${p.date.slice(5)}</span>`;
+    const x=document.createElement("button"); x.textContent="×";
+    x.onclick=()=>{ park.splice(i,1); save(K.park,park); renderPark(); };
+    row.appendChild(x); el.appendChild(row);
+  });
+}
+
+// ---------- crunch mode ----------
+const cBtn=document.getElementById("crunchBtn"), cInfo=document.getElementById("crunchInfo"), cEnd=document.getElementById("crunchEnd");
+function renderCrunch(){
+  const on=crunchOn();
+  cBtn.className="chk"+(on?" on":""); cBtn.textContent=on?"On":"Off";
+  cInfo.textContent=on?"until "+settings.crunchEnd+" — floor days count as wins":"declare it with an end date; never open-ended";
+  cEnd.style.display=on?"none":"none";
+}
+cBtn.onclick=()=>{
+  if(crunchOn()){ settings.crunchEnd=null; save(K.settings,settings); renderCrunch(); renderBanners(); renderInsights(); }
+  else{
+    cEnd.style.display="inline-block";
+    cEnd.min=TK;
+    cEnd.onchange=()=>{ if(cEnd.value){ settings.crunchEnd=cEnd.value; save(K.settings,settings);
+      cEnd.style.display="none"; renderCrunch(); renderBanners(); renderInsights(); } };
+    cEnd.focus(); cEnd.showPicker && cEnd.showPicker();
+  }
+};
+
+// ---------- export / import ----------
+function exportData(){
+  const blob=new Blob([JSON.stringify({days,settings,park,exported:TK},null,1)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="floor-backup-"+TK+".json"; a.click();
+}
+function importData(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const d=JSON.parse(r.result);
+    if(d.days){ days=d.days; settings=d.settings||settings; park=d.park||[];
+      save(K.days,days); save(K.settings,settings); save(K.park,park); location.reload(); }
+  }catch(e){ alert("Couldn't read that backup file."); } };
+  r.readAsText(f);
+}
+
+// ---------- init ----------
+renderTiers(); renderChecks(); renderTomorrow(); renderStreak();
+renderBanners(); renderHorizons(); renderHeat(); renderInsights(); renderPark(); renderCrunch();
+save(K.days,days); save(K.settings,settings);
+
+// offline support when hosted (ignored when opened as a local file)
+if("serviceWorker" in navigator && location.protocol==="https:")
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
