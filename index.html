@@ -329,10 +329,6 @@ function viewPhoto(key,cat){
     ov.appendChild(im); ov.appendChild(del); document.body.appendChild(ov);
   });
 }
-// random daily check-in time (seeded by date: same all day, different every day, 10:00–20:59)
-function checkinMin(){ let h=0; for(const ch of TK) h=(h*31+ch.charCodeAt(0))>>>0; return 600+(h%660); }
-function fmtMin(m){ let h=Math.floor(m/60), mm=m%60, ap=h>=12?"PM":"AM"; h=h%12||12; return h+":"+String(mm).padStart(2,"0")+" "+ap; }
-
 // ---------- day card ----------
 const TIERS = [
   {id:"full", name:"Full", sub:"complete session"},
@@ -484,13 +480,6 @@ function renderBanners(){
     add("calm","Crunch mode until "+settings.crunchEnd+". Floor days count as full compliance. Zero guilt.");
   if(today.getDay()===0 && today.getDate()<=7)
     add("calm","First Sunday — reread the compass before the weekly review.");
-  // random photo check-in (BeReal-style, no server needed)
-  const cm=checkinMin(), now=new Date(), nowM=now.getHours()*60+now.getMinutes();
-  const anyProof=t && t.pf && Object.values(t.pf).some(Boolean);
-  if(!anyProof){
-    if(nowM<cm) add("calm","Random check-in today at "+fmtMin(cm)+" — photo-proof whatever you're doing when it hits.");
-    else add("alert","Check-in time ("+fmtMin(cm)+") passed with no proof — attach a photo to at least one category.");
-  }
 }
 
 // ---------- horizons ----------
