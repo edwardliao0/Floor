@@ -67,6 +67,15 @@
   .det{display:flex; align-items:center; gap:8px}
   .det .dl{font-size:11px; font-weight:600; width:92px; flex-shrink:0; text-transform:uppercase; letter-spacing:.05em}
   .det input{flex:1; padding:7px 10px; font-size:13px; border:1px solid var(--line); border-radius:8px}
+  .cam{border:1px solid var(--line); background:transparent; border-radius:8px; width:36px; height:36px;
+    font-size:15px; cursor:pointer; flex-shrink:0; font-family:inherit}
+  .thumb{width:36px; height:36px; object-fit:cover; border-radius:8px; cursor:pointer;
+    flex-shrink:0; border:1px solid var(--good)}
+  .ov{position:fixed; inset:0; background:rgba(0,0,0,.88); display:flex; flex-direction:column;
+    gap:14px; align-items:center; justify-content:center; z-index:99}
+  .ov img{max-width:92vw; max-height:72vh; border-radius:12px}
+  .ov button{border:1px solid #666; background:transparent; color:#fff; border-radius:999px;
+    padding:8px 18px; font-size:13px; cursor:pointer; font-family:inherit}
   input[type=text], textarea, input[type=date], select{
     width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
     font-size:14px; font-family:inherit; background:transparent; color:var(--ink);
@@ -236,7 +245,7 @@
     <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
   </div>
-  <div class="note">All data lives on this device. No account, no server, no subscription.<br>Export a backup monthly — it takes two seconds.</div>
+  <div class="note">All data lives on this device. No account, no server, no subscription.<br>Export a backup monthly — it takes two seconds. Photos stay in the app's local database and are not included in JSON backups.</div>
 </div>
 
 <div class="saved" id="saved">Saved</div>
@@ -284,6 +293,46 @@ function persist(){
   renderStreak(); renderCats(); renderHeat(); renderInsights(); renderBanners(); renderHorizons();
 }
 
+// ---------- photo proof (IndexedDB — photos are too big for localStorage) ----------
+let pdb=null;
+const dbReady=new Promise(res=>{
+  try{
+    const rq=indexedDB.open("floor-photos",1);
+    rq.onupgradeneeded=()=>rq.result.createObjectStore("p");
+    rq.onsuccess=()=>{ pdb=rq.result; res(); };
+    rq.onerror=()=>res();
+  }catch(e){ res(); }
+});
+const putPhoto=(k,b)=>dbReady.then(()=>new Promise(r=>{ if(!pdb) return r();
+  const tx=pdb.transaction("p","readwrite"); tx.objectStore("p").put(b,k); tx.oncomplete=r; tx.onerror=()=>r(); }));
+const getPhoto=k=>dbReady.then(()=>new Promise(r=>{ if(!pdb) return r(null);
+  const rq=pdb.transaction("p").objectStore("p").get(k); rq.onsuccess=()=>r(rq.result||null); rq.onerror=()=>r(null); }));
+const delPhoto=k=>dbReady.then(()=>new Promise(r=>{ if(!pdb) return r();
+  const tx=pdb.transaction("p","readwrite"); tx.objectStore("p").delete(k); tx.oncomplete=r; tx.onerror=()=>r(); }));
+// downscale to ~40-80KB so two years of proof stays small
+function shrink(file){ return new Promise(res=>{
+  const img=new Image();
+  img.onload=()=>{ const M=900, s=Math.min(1,M/Math.max(img.width,img.height));
+    const c=document.createElement("canvas"); c.width=(img.width*s)|0; c.height=(img.height*s)|0;
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    c.toBlob(b=>res(b||file),"image/jpeg",0.6); };
+  img.onerror=()=>res(file);
+  img.src=URL.createObjectURL(file); }); }
+function viewPhoto(key,cat){
+  getPhoto(key).then(b=>{ if(!b) return;
+    const ov=document.createElement("div"); ov.className="ov";
+    const im=document.createElement("img"); im.src=URL.createObjectURL(b);
+    const del=document.createElement("button"); del.textContent="Delete photo";
+    del.onclick=e=>{ e.stopPropagation();
+      delPhoto(key).then(()=>{ if(d0.pf) delete d0.pf[cat]; persist(); renderDetails(); ov.remove(); }); };
+    ov.onclick=()=>ov.remove();
+    ov.appendChild(im); ov.appendChild(del); document.body.appendChild(ov);
+  });
+}
+// random daily check-in time (seeded by date: same all day, different every day, 10:00–20:59)
+function checkinMin(){ let h=0; for(const ch of TK) h=(h*31+ch.charCodeAt(0))>>>0; return 600+(h%660); }
+function fmtMin(m){ let h=Math.floor(m/60), mm=m%60, ap=h>=12?"PM":"AM"; h=h%12||12; return h+":"+String(mm).padStart(2,"0")+" "+ap; }
+
 // ---------- day card ----------
 const TIERS = [
   {id:"full", name:"Full", sub:"complete session"},
@@ -320,17 +369,34 @@ function renderChecks(){
   });
   renderDetails();
 }
-// detail inputs — one per checked category, logging what specifically was done
+// detail inputs — one per checked category: what you did + optional photo proof
 function renderDetails(){
   const el=document.getElementById("catDetails"); el.innerHTML="";
-  d0.det = d0.det || {};
+  d0.det = d0.det || {}; d0.pf = d0.pf || {};
   CHECKS.filter(c=>d0[c.id]).forEach(c=>{
     const row=document.createElement("div"); row.className="det";
     const lab=document.createElement("span"); lab.className="dl"; lab.textContent=c.name;
     const inp=document.createElement("input"); inp.type="text";
     inp.placeholder=c.ph; inp.value=d0.det[c.id]||"";
     inp.oninput=()=>{ d0.det[c.id]=inp.value; clearTimeout(inp._t); inp._t=setTimeout(persist,600); };
-    row.appendChild(lab); row.appendChild(inp); el.appendChild(row);
+    row.appendChild(lab); row.appendChild(inp);
+    const key=cur+"."+c.id;
+    if(d0.pf[c.id]){
+      const im=document.createElement("img"); im.className="thumb"; im.alt="proof";
+      getPhoto(key).then(b=>{ if(b) im.src=URL.createObjectURL(b); });
+      im.onclick=()=>viewPhoto(key,c.id);
+      row.appendChild(im);
+    } else {
+      const cam=document.createElement("button"); cam.className="cam"; cam.textContent="📷"; cam.title="Photo proof";
+      const file=document.createElement("input"); file.type="file"; file.accept="image/*"; file.style.display="none";
+      file.setAttribute("capture","environment");
+      cam.onclick=()=>file.click();
+      file.onchange=async()=>{ const f=file.files[0]; if(!f) return;
+        const b=await shrink(f); await putPhoto(key,b);
+        d0.pf[c.id]=true; persist(); renderDetails(); };
+      row.appendChild(cam); row.appendChild(file);
+    }
+    el.appendChild(row);
   });
 }
 const jEl=document.getElementById("journal");
@@ -418,6 +484,13 @@ function renderBanners(){
     add("calm","Crunch mode until "+settings.crunchEnd+". Floor days count as full compliance. Zero guilt.");
   if(today.getDay()===0 && today.getDate()<=7)
     add("calm","First Sunday — reread the compass before the weekly review.");
+  // random photo check-in (BeReal-style, no server needed)
+  const cm=checkinMin(), now=new Date(), nowM=now.getHours()*60+now.getMinutes();
+  const anyProof=t && t.pf && Object.values(t.pf).some(Boolean);
+  if(!anyProof){
+    if(nowM<cm) add("calm","Random check-in today at "+fmtMin(cm)+" — photo-proof whatever you're doing when it hits.");
+    else add("alert","Check-in time ("+fmtMin(cm)+") passed with no proof — attach a photo to at least one category.");
+  }
 }
 
 // ---------- horizons ----------
@@ -520,6 +593,9 @@ function renderInsights(){
       add("Weekday pattern", WD[worst]+"s are your weakest ("+Math.round(rate*100)+"% floor-or-zero). Pre-plan "+WD[worst]+" as a maintenance day — pre-made decisions beat morning negotiations.");
     else
       add("Weekday pattern","No weak weekday yet — tiers are holding across the week.");
+    const pr=last14.filter(k=>days[k].pf && Object.values(days[k].pf).some(Boolean)).length;
+    if(last14.length>=5)
+      add("Proof rate", pr+"/"+last14.length+" days with photo evidence. "+(pr/last14.length>=0.5?"Receipts are accumulating.":"A claim without a receipt is just a claim — snap the barbell, the book page, the voice-memo screen."));
     const sundays=keys.filter(k=>parse(k).getDay()===0);
     const shipped=sundays.filter(k=>days[k].ship && days[k].ship.trim()).length;
     if(sundays.length>=2)
