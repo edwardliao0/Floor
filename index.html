@@ -257,7 +257,7 @@ const K = { days:"floor.days", settings:"floor.settings", park:"floor.park" };
 const load = (k,d) => { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
 const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
 
-let days = load(K.days, {});           // {"2026-07-09":{tier,train,deep,cuff,read,breath,journal,ship,next}}
+let days = load(K.days, {});           // {"2026-07-09":{tier,train,deep,cuff,read,breath,journal,ship,next,det,pf}}
 let settings = load(K.settings, {});   // {start, crunchEnd}
 let park = load(K.park, []);           // [{date,text}]
 
@@ -329,6 +329,7 @@ function viewPhoto(key,cat){
     ov.appendChild(im); ov.appendChild(del); document.body.appendChild(ov);
   });
 }
+
 // ---------- day card ----------
 const TIERS = [
   {id:"full", name:"Full", sub:"complete session"},
