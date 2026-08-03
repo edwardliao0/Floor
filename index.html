@@ -14,12 +14,18 @@
 <style>
   :root{
     --bg:#fafaf7; --card:#ffffff; --ink:#111111; --sub:#111111; --line:#e8e8e2;
-    --full:#191919; --maint:#9a9a92; --floor:#d8d8d0; --zero:#c0392b; --good:#1a7f4e;
+    /* the level scale — identical for every category: black / grey / white */
+    --full:#111111; --floorc:#9a9a9a; --nonec:#ffffff; --noneb:#b4b4ae;
+    --fullink:#ffffff; --floorink:#ffffff; --noneink:#111111;
+    --alert:#c0392b; --good:#1a7f4e;
     --r:14px;
   }
   @media (prefers-color-scheme: dark){
     :root{ --bg:#121210; --card:#1c1c19; --ink:#ecece6; --sub:#ecece6; --line:#2c2c27;
-      --full:#ecece6; --maint:#6f6f67; --floor:#3a3a34; --zero:#e06050; --good:#4dbb85; }
+      /* inverted so the same scale stays legible on a dark background */
+      --full:#f2f2ec; --floorc:#7c7c74; --nonec:#141412; --noneb:#4a4a43;
+      --fullink:#111111; --floorink:#ffffff; --noneink:#ecece6;
+      --alert:#e06050; --good:#4dbb85; }
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{background:var(--bg); color:var(--ink);
@@ -37,45 +43,47 @@
     font-weight:600; margin-bottom:12px}
   .banner{border-radius:var(--r); padding:12px 16px; font-size:13.5px; margin-bottom:14px;
     border:1px solid var(--line); background:var(--card)}
-  .banner.alert{border-color:color-mix(in srgb, var(--zero) 40%, transparent); color:var(--zero)}
+  .banner.alert{border-color:color-mix(in srgb, var(--alert) 40%, transparent); color:var(--alert)}
   .banner.calm{color:var(--sub)}
+  /* view tabs */
+  .tabs{display:flex; gap:6px; margin-bottom:18px}
+  .tab{flex:1; border:1px solid var(--line); background:transparent; color:var(--sub);
+    border-radius:10px; padding:9px 4px; font-size:13px; font-weight:550; cursor:pointer;
+    font-family:inherit; transition:all .12s}
+  .tab.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
   /* day navigation */
   .labelrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px}
   .labelrow .label{margin-bottom:0}
   .nav button{border:1px solid var(--line); background:transparent; color:var(--ink);
     border-radius:8px; width:30px; height:30px; font-size:16px; cursor:pointer; font-family:inherit}
   .nav button:disabled{opacity:.25; cursor:default}
-  .backfill{font-size:11px; color:var(--zero); margin-left:8px; font-weight:600; text-transform:none; letter-spacing:0}
-  /* tier segmented control */
-  .tiers{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
-  .tier{border:1px solid var(--line); border-radius:10px; padding:10px 4px; text-align:center;
-    cursor:pointer; background:transparent; color:var(--ink); font-size:13px; font-weight:550;
-    transition:all .12s ease; font-family:inherit}
-  .tier small{display:block; font-size:10.5px; color:var(--sub); font-weight:400; margin-top:2px}
-  .tier.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-  .tier.sel small{color:var(--bg); opacity:.65}
-  .tier.sel.zero{background:var(--zero); border-color:var(--zero); color:#fff}
-  .tier.sel.zero small{color:#fff}
-  /* checks */
-  .checks{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
-  .chk{border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:13px;
-    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit; transition:all .12s}
-  .chk.on{background:var(--card); color:var(--ink); border-color:var(--ink)}
-  .chk.on::before{content:"✓ "; color:var(--good)}
-  /* per-category detail inputs */
-  .dets{margin-top:10px; display:flex; flex-direction:column; gap:8px}
-  .det{display:flex; align-items:center; gap:8px}
-  .det .dl{font-size:11px; font-weight:600; width:92px; flex-shrink:0; text-transform:uppercase; letter-spacing:.05em}
-  .det input{flex:1; padding:7px 10px; font-size:13px; border:1px solid var(--line); border-radius:8px}
-  .cam{border:1px solid var(--line); background:transparent; border-radius:8px; width:36px; height:36px;
-    font-size:15px; cursor:pointer; flex-shrink:0; font-family:inherit}
-  .thumb{width:36px; height:36px; object-fit:cover; border-radius:8px; cursor:pointer;
-    flex-shrink:0; border:1px solid var(--good)}
-  .ov{position:fixed; inset:0; background:rgba(0,0,0,.88); display:flex; flex-direction:column;
-    gap:14px; align-items:center; justify-content:center; z-index:99}
-  .ov img{max-width:92vw; max-height:72vh; border-radius:12px}
-  .ov button{border:1px solid #666; background:transparent; color:#fff; border-radius:999px;
-    padding:8px 18px; font-size:13px; cursor:pointer; font-family:inherit}
+  .backfill{font-size:11px; color:var(--alert); margin-left:8px; font-weight:600; text-transform:none; letter-spacing:0}
+  /* per-category level rows */
+  .lvrow{padding:12px 0; border-bottom:1px solid var(--line)}
+  .lvrow:first-child{padding-top:0}
+  .lvrow:last-child{border-bottom:none; padding-bottom:0}
+  .lvhead{display:flex; align-items:center; gap:10px}
+  .lvname{flex:1; font-size:13.5px; font-weight:550}
+  .lvsel{display:flex; gap:6px; flex-shrink:0}
+  .lvbtn{border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit;
+    transition:all .12s; font-weight:550; min-width:52px}
+  .lvbtn.sel.full{background:var(--full); color:var(--fullink); border-color:var(--full)}
+  .lvbtn.sel.floor{background:var(--floorc); color:var(--floorink); border-color:var(--floorc)}
+  .lvbtn.sel.none{background:var(--nonec); color:var(--noneink); border-color:var(--noneb)}
+  .lvdet{margin-top:8px}
+  .lvdet input{width:100%; padding:7px 10px; font-size:13px; border:1px solid var(--line); border-radius:8px}
+  .daysum{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
+    font-size:12.5px; color:var(--sub); display:flex; align-items:center; gap:8px}
+  /* multi-colored day swatch — one stripe per category, in category order */
+  .daysw{display:flex; width:34px; height:13px; border-radius:4px; overflow:hidden;
+    flex-shrink:0; border:1px solid var(--line)}
+  .daysw i{flex:1; display:block}
+  .daysw i.full{background:var(--full)}
+  .daysw i.floor{background:var(--floorc)}
+  .daysw i.none{background:var(--nonec)}
+  .daysw i.unset{background:var(--line); opacity:.6}
+  .daysum b{color:var(--ink); font-weight:650}
   input[type=text], textarea, input[type=date], select{
     width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
     font-size:14px; font-family:inherit; background:transparent; color:var(--ink);
@@ -97,7 +105,7 @@
   .cat .cs{font-size:19px; font-weight:650; letter-spacing:-.02em}
   .cat .cs small{font-size:11px; font-weight:400}
   .cat .cn{font-size:11px; margin-top:1px}
-  .cat .cm{font-size:10.5px; margin-top:3px; color:var(--zero); font-weight:600}
+  .cat .cm{font-size:10.5px; margin-top:3px; color:var(--alert); font-weight:600}
   .cat.done{border-color:var(--good)}
   .cat.done .cm{color:var(--good)}
   /* horizons */
@@ -109,12 +117,13 @@
   .bar i{display:block; height:100%; background:var(--ink); border-radius:2px}
   /* heatmap */
   .heat{display:grid; grid-template-columns:repeat(7,1fr); gap:5px}
-  .cell{aspect-ratio:1; border-radius:5px; background:var(--line); opacity:.5}
+  .cell{aspect-ratio:1; border-radius:5px; background:var(--line); opacity:.45}
   .cell.full{background:var(--full); opacity:1}
-  .cell.maintenance{background:var(--maint); opacity:1}
-  .cell.floor{background:var(--floor); opacity:1}
-  .cell.zero{background:transparent; border:1.5px solid var(--zero); opacity:1}
+  .cell.floor{background:var(--floorc); opacity:1}
+  .cell.none{background:var(--nonec); border:1px solid var(--noneb); opacity:1}
   .cell.today{outline:2px solid var(--sub); outline-offset:1.5px}
+  .heatdow{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:6px}
+  .heatdow span{text-align:center; font-size:9.5px; color:var(--sub); opacity:.75; letter-spacing:.04em}
   .legend{display:flex; gap:14px; margin-top:12px; font-size:11px; color:var(--sub)}
   .legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; vertical-align:-1px}
   /* insights */
@@ -130,6 +139,35 @@
   .park-item .d{color:var(--sub); font-size:12px; white-space:nowrap}
   .park-item .hear{color:var(--good); font-size:11px}
   .park-item button{background:none; border:none; color:var(--sub); cursor:pointer; font-size:14px}
+  /* log page */
+  .logrow{border-bottom:1px solid var(--line)}
+  .logrow:last-child{border-bottom:none}
+  .loghead{display:flex; align-items:center; gap:10px; padding:11px 0; cursor:pointer}
+  .logdot{width:11px; height:11px; border-radius:4px; flex-shrink:0; background:var(--line)}
+  .logdot.full{background:var(--full)}
+  .logdot.floor{background:var(--floorc)}
+  .logdot.none{background:var(--nonec); border:1px solid var(--noneb)}
+  .logdate{font-size:13px; font-weight:600; width:92px; flex-shrink:0}
+  .logsum{flex:1; font-size:12.5px; color:var(--sub); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap}
+  .logchev{color:var(--sub); font-size:14px; flex-shrink:0; transition:transform .15s}
+  .logrow.open .logchev{transform:rotate(90deg)}
+  .logbody{padding:2px 0 14px 21px; font-size:13px}
+  .logbody .lb{margin-bottom:8px}
+  .logbody .lb:last-child{margin-bottom:0}
+  .logbody .lbt{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--sub); font-weight:600}
+  .logbody .lvtag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:1px}
+  .logbody .lvtag.full{background:var(--full); color:var(--fullink)}
+  .logbody .lvtag.floor{background:var(--floorc); color:var(--floorink)}
+  .logbody .lvtag.none{background:var(--nonec); color:var(--noneink); border:1px solid var(--noneb)}
+  .logbody .muted{color:var(--sub); opacity:.7}
+  .logedit{background:none; border:none; color:var(--sub); font-size:12px; cursor:pointer;
+    font-family:inherit; text-decoration:underline; padding:0; margin-top:4px}
+  .logmonth{font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--sub);
+    font-weight:600; margin:16px 0 2px; padding-top:10px; border-top:1px solid var(--line)}
+  .logmonth:first-child{margin-top:0; padding-top:0; border-top:none}
   /* footer */
   .ft{display:flex; gap:10px; justify-content:center; margin-top:24px}
   .btn{border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:999px;
@@ -144,14 +182,20 @@
   .saved.show{opacity:1}
   .crunch-row{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--sub)}
   .crunch-row input[type=date]{width:auto; padding:5px 8px; font-size:12.5px}
+  .chk{border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:13px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit; transition:all .12s}
+  .chk.on{background:var(--card); color:var(--ink); border-color:var(--ink)}
+  .chk.on::before{content:"✓ "; color:var(--good)}
   /* iPhone polish */
   @media (max-width:480px){
     .wrap{padding:20px 14px calc(70px + env(safe-area-inset-bottom))}
     body{padding-top:env(safe-area-inset-top)}
     input[type=text], textarea{font-size:16px}   /* prevents iOS focus-zoom */
-    .tier{padding:12px 4px}                       /* bigger tap targets */
+    .lvbtn{padding:8px 8px; min-width:0; flex:1}
+    .lvsel{flex:0 0 auto; width:168px}
     .chk{padding:10px 16px}
     .hz .num{font-size:19px}
+    .logdate{width:78px; font-size:12.5px}
   }
 </style>
 </head>
@@ -165,6 +209,14 @@
 
   <div class="compass-line">Depth is the bet. The floor never breaks.<br>Pivots happen only at quarterly reviews, in writing.</div>
 
+  <div class="tabs">
+    <button class="tab sel" id="tabTrack">Tracker</button>
+    <button class="tab" id="tabLog">Log</button>
+  </div>
+
+  <!-- ============ TRACKER VIEW ============ -->
+  <div id="viewTrack">
+
   <div id="banners"></div>
 
   <!-- DAY (today or backfill) -->
@@ -176,9 +228,8 @@
         <button id="nextDay" title="Next day">›</button>
       </div>
     </div>
-    <div class="tiers" id="tiers"></div>
-    <div class="checks" id="checks"></div>
-    <div class="dets" id="catDetails"></div>
+    <div id="catLevels"></div>
+    <div class="daysum" id="daySum"></div>
     <div class="field">
       <div class="hint">Decision journal — one call you made today, and why</div>
       <textarea id="journal" rows="2" placeholder="e.g. Passed on X because…"></textarea>
@@ -207,13 +258,13 @@
 
   <!-- HEATMAP -->
   <div class="card">
-    <div class="label">Last 8 weeks</div>
+    <div class="label" id="heatLabel">Every week — day one at the top</div>
+    <div class="heatdow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
     <div class="heat" id="heat"></div>
     <div class="legend">
       <span><i style="background:var(--full)"></i>Full</span>
-      <span><i style="background:var(--maint)"></i>Maintenance</span>
-      <span><i style="background:var(--floor)"></i>Floor</span>
-      <span><i style="border:1.5px solid var(--zero); background:transparent"></i>Zero</span>
+      <span><i style="background:var(--floorc)"></i>Floor</span>
+      <span><i style="background:var(--nonec); border:1px solid var(--noneb)"></i>None</span>
     </div>
   </div>
 
@@ -240,12 +291,22 @@
     </div>
   </div>
 
+  </div><!-- /viewTrack -->
+
+  <!-- ============ LOG VIEW ============ -->
+  <div id="viewLog" style="display:none">
+    <div class="card">
+      <div class="label">Log — every day you've written down</div>
+      <div id="logList"></div>
+    </div>
+  </div>
+
   <div class="ft">
     <button class="btn" onclick="exportData()">Export backup</button>
     <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
   </div>
-  <div class="note">All data lives on this device. No account, no server, no subscription.<br>Export a backup monthly — it takes two seconds. Photos stay in the app's local database and are not included in JSON backups.</div>
+  <div class="note">All data lives on this device. No account, no server, no subscription.<br>Export a backup monthly — it takes two seconds.</div>
 </div>
 
 <div class="saved" id="saved">Saved</div>
@@ -257,12 +318,43 @@ const K = { days:"floor.days", settings:"floor.settings", park:"floor.park" };
 const load = (k,d) => { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
 const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
 
-let days = load(K.days, {});           // {"2026-07-09":{tier,train,deep,cuff,read,breath,journal,ship,next,det,pf}}
+let days = load(K.days, {});           // {"2026-07-09":{lv:{train:"full",…},det,journal,ship,next}}
 let settings = load(K.settings, {});   // {start, crunchEnd}
 let park = load(K.park, []);           // [{date,text}]
 
-// migrate old "community rep" field to "off-the-cuff"
-Object.values(days).forEach(d=>{ if(d && d.rep!==undefined){ if(d.cuff===undefined) d.cuff=d.rep; delete d.rep; } });
+// ---------- categories & levels ----------
+const CATS = [
+  {id:"train", name:"Trained",       ph:"e.g. Full Body A — front squat 5×5 @ 185"},
+  {id:"deep",  name:"Deep work",     ph:"e.g. 70 min — LMT 10-K, segment margins"},
+  {id:"cuff",  name:"Articulate",    ph:"e.g. 2-min voice memo — pitched HON, listened back"},
+  {id:"read",  name:"Read 10 pages", ph:"e.g. Xunzi ch.1, pp. 12–24"},
+  {id:"breath",name:"Breathwork",    ph:"e.g. 10 min box breathing"},
+];
+const LEVELS = [
+  {id:"full",  name:"Full"},
+  {id:"floor", name:"Floor"},
+  {id:"none",  name:"None"},
+];
+const SCORE = {full:2, floor:1, none:0};
+const LVNAME = {full:"Full", floor:"Floor", none:"None"};
+
+// ---------- migration from the old single-tier model ----------
+const OLD2LV = {full:"full", maintenance:"floor", floor:"floor", zero:"none"};
+Object.values(days).forEach(d=>{
+  if(!d) return;
+  if(d.rep!==undefined){ if(d.cuff===undefined) d.cuff=d.rep; delete d.rep; }   // legacy rename
+  if(d.pf) delete d.pf;                                                         // photo feature removed
+  if(!d.lv){
+    const base = OLD2LV[d.tier] || null;
+    if(base || CATS.some(c=>d[c.id])){
+      d.lv = {};
+      CATS.forEach(c=>{
+        d.lv[c.id] = d[c.id] ? (base && base!=="none" ? base : "floor") : "none";
+      });
+    }
+  }
+  if(d.next==="maintenance") d.next="floor";
+});
 
 // ---------- dates ----------
 const fmt = d => { const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); };
@@ -274,9 +366,28 @@ const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturda
 
 if(!settings.start){ settings.start = TK; save(K.settings, settings); }
 
+// ---------- derived day tier ----------
+// 3+ categories at Full  → Full day
+// at least one non-None  → Floor day
+// all five set to None   → None day
+// nothing set at all     → not logged (null)
+function dayTier(k){
+  const d = days[k];
+  if(!d || !d.lv) return null;
+  const vals = CATS.map(c=>d.lv[c.id]).filter(v=>v);
+  if(!vals.length) return null;
+  const fulls = vals.filter(v=>v==="full").length;
+  if(fulls>=3) return "full";
+  if(vals.some(v=>v!=="none")) return "floor";
+  return "none";
+}
+function fullCount(k){ const d=days[k]; if(!d||!d.lv) return 0;
+  return CATS.filter(c=>d.lv[c.id]==="full").length; }
+function hit(k,cat){ const d=days[k]; return !!(d && d.lv && d.lv[cat] && d.lv[cat]!=="none"); }
+
 // yesterday's chosen "next" is a reminder, never an auto-log
 const yk = fmt(addDays(today,-1));
-const plannedTier = (!days[TK] || !days[TK].tier) && days[yk] && days[yk].next ? days[yk].next : null;
+const plannedTier = !dayTier(TK) && days[yk] && days[yk].next ? days[yk].next : null;
 
 // current day being viewed/edited (supports backfill)
 let cur = TK;
@@ -290,112 +401,53 @@ function persist(){
   const s=document.getElementById("saved");
   s.classList.add("show");
   saveT=setTimeout(()=>s.classList.remove("show"), 900);
-  renderStreak(); renderCats(); renderHeat(); renderInsights(); renderBanners(); renderHorizons();
+  renderStreak(); renderCats(); renderHeat(); renderInsights(); renderBanners();
+  renderHorizons(); renderDaySum(); renderLog();
 }
 
-// ---------- photo proof (IndexedDB — photos are too big for localStorage) ----------
-let pdb=null;
-const dbReady=new Promise(res=>{
-  try{
-    const rq=indexedDB.open("floor-photos",1);
-    rq.onupgradeneeded=()=>rq.result.createObjectStore("p");
-    rq.onsuccess=()=>{ pdb=rq.result; res(); };
-    rq.onerror=()=>res();
-  }catch(e){ res(); }
-});
-const putPhoto=(k,b)=>dbReady.then(()=>new Promise(r=>{ if(!pdb) return r();
-  const tx=pdb.transaction("p","readwrite"); tx.objectStore("p").put(b,k); tx.oncomplete=r; tx.onerror=()=>r(); }));
-const getPhoto=k=>dbReady.then(()=>new Promise(r=>{ if(!pdb) return r(null);
-  const rq=pdb.transaction("p").objectStore("p").get(k); rq.onsuccess=()=>r(rq.result||null); rq.onerror=()=>r(null); }));
-const delPhoto=k=>dbReady.then(()=>new Promise(r=>{ if(!pdb) return r();
-  const tx=pdb.transaction("p","readwrite"); tx.objectStore("p").delete(k); tx.oncomplete=r; tx.onerror=()=>r(); }));
-// downscale to ~40-80KB so two years of proof stays small
-function shrink(file){ return new Promise(res=>{
-  const img=new Image();
-  img.onload=()=>{ const M=900, s=Math.min(1,M/Math.max(img.width,img.height));
-    const c=document.createElement("canvas"); c.width=(img.width*s)|0; c.height=(img.height*s)|0;
-    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-    c.toBlob(b=>res(b||file),"image/jpeg",0.6); };
-  img.onerror=()=>res(file);
-  img.src=URL.createObjectURL(file); }); }
-function viewPhoto(key,cat){
-  getPhoto(key).then(b=>{ if(!b) return;
-    const ov=document.createElement("div"); ov.className="ov";
-    const im=document.createElement("img"); im.src=URL.createObjectURL(b);
-    const del=document.createElement("button"); del.textContent="Delete photo";
-    del.onclick=e=>{ e.stopPropagation();
-      delPhoto(key).then(()=>{ if(d0.pf) delete d0.pf[cat]; persist(); renderDetails(); ov.remove(); }); };
-    ov.onclick=()=>ov.remove();
-    ov.appendChild(im); ov.appendChild(del); document.body.appendChild(ov);
-  });
-}
-
-// ---------- day card ----------
-const TIERS = [
-  {id:"full", name:"Full", sub:"complete session"},
-  {id:"maintenance", name:"Maint.", sub:"30–40 min"},
-  {id:"floor", name:"Floor", sub:"10 min"},
-  {id:"zero", name:"Zero", sub:"missed"},
-];
-const CHECKS = [
-  {id:"train", name:"Trained",       ph:"e.g. Full Body A — front squat 5×5 @ 185"},
-  {id:"deep",  name:"Deep work",     ph:"e.g. 70 min — LMT 10-K, segment margins"},
-  {id:"cuff",  name:"Articulate",    ph:"e.g. 2-min voice memo — pitched HON, listened back"},
-  {id:"read",  name:"Read 10 pages", ph:"e.g. Xunzi ch.1, pp. 12–24"},
-  {id:"breath",name:"Breathwork",    ph:"e.g. 10 min box breathing"},
-];
-
-function renderTiers(){
-  const el=document.getElementById("tiers"); el.innerHTML="";
-  TIERS.forEach(t=>{
-    const b=document.createElement("button");
-    b.className="tier"+(d0.tier===t.id?" sel":"")+(t.id==="zero"?" zero":"");
-    b.innerHTML=t.name+"<small>"+t.sub+"</small>";
-    b.onclick=()=>{ d0.tier = d0.tier===t.id ? null : t.id; renderTiers(); persist(); };
-    el.appendChild(b);
-  });
-}
-function renderChecks(){
-  const el=document.getElementById("checks"); el.innerHTML="";
-  CHECKS.forEach(c=>{
-    const b=document.createElement("button");
-    b.className="chk"+(d0[c.id]?" on":"");
-    b.textContent=c.name;
-    b.onclick=()=>{ d0[c.id]=!d0[c.id]; renderChecks(); persist(); };
-    el.appendChild(b);
-  });
-  renderDetails();
-}
-// detail inputs — one per checked category: what you did + optional photo proof
-function renderDetails(){
-  const el=document.getElementById("catDetails"); el.innerHTML="";
-  d0.det = d0.det || {}; d0.pf = d0.pf || {};
-  CHECKS.filter(c=>d0[c.id]).forEach(c=>{
-    const row=document.createElement("div"); row.className="det";
-    const lab=document.createElement("span"); lab.className="dl"; lab.textContent=c.name;
-    const inp=document.createElement("input"); inp.type="text";
-    inp.placeholder=c.ph; inp.value=d0.det[c.id]||"";
-    inp.oninput=()=>{ d0.det[c.id]=inp.value; clearTimeout(inp._t); inp._t=setTimeout(persist,600); };
-    row.appendChild(lab); row.appendChild(inp);
-    const key=cur+"."+c.id;
-    if(d0.pf[c.id]){
-      const im=document.createElement("img"); im.className="thumb"; im.alt="proof";
-      getPhoto(key).then(b=>{ if(b) im.src=URL.createObjectURL(b); });
-      im.onclick=()=>viewPhoto(key,c.id);
-      row.appendChild(im);
-    } else {
-      const cam=document.createElement("button"); cam.className="cam"; cam.textContent="📷"; cam.title="Photo proof";
-      const file=document.createElement("input"); file.type="file"; file.accept="image/*"; file.style.display="none";
-      file.setAttribute("capture","environment");
-      cam.onclick=()=>file.click();
-      file.onchange=async()=>{ const f=file.files[0]; if(!f) return;
-        const b=await shrink(f); await putPhoto(key,b);
-        d0.pf[c.id]=true; persist(); renderDetails(); };
-      row.appendChild(cam); row.appendChild(file);
+// ---------- day card: one Full / Floor / None control per category ----------
+function renderLevels(){
+  const el=document.getElementById("catLevels"); el.innerHTML="";
+  d0.lv = d0.lv || {}; d0.det = d0.det || {};
+  CATS.forEach(c=>{
+    const row=document.createElement("div"); row.className="lvrow";
+    const head=document.createElement("div"); head.className="lvhead";
+    const nm=document.createElement("span"); nm.className="lvname"; nm.textContent=c.name;
+    const sel=document.createElement("div"); sel.className="lvsel";
+    LEVELS.forEach(L=>{
+      const b=document.createElement("button");
+      b.className="lvbtn "+L.id+(d0.lv[c.id]===L.id?" sel":"");
+      b.textContent=L.name;
+      b.onclick=()=>{
+        d0.lv[c.id] = d0.lv[c.id]===L.id ? undefined : L.id;
+        if(d0.lv[c.id]===undefined) delete d0.lv[c.id];
+        renderLevels(); persist();
+      };
+      sel.appendChild(b);
+    });
+    head.appendChild(nm); head.appendChild(sel); row.appendChild(head);
+    // detail line only when the category actually happened
+    if(d0.lv[c.id] && d0.lv[c.id]!=="none"){
+      const wrap=document.createElement("div"); wrap.className="lvdet";
+      const inp=document.createElement("input"); inp.type="text";
+      inp.placeholder=c.ph; inp.value=(d0.det&&d0.det[c.id])||"";
+      inp.oninput=()=>{ d0.det[c.id]=inp.value; clearTimeout(inp._t); inp._t=setTimeout(persist,600); };
+      wrap.appendChild(inp); row.appendChild(wrap);
     }
     el.appendChild(row);
   });
 }
+function renderDaySum(){
+  const el=document.getElementById("daySum");
+  // multi-colored swatch: one stripe per category, in category order
+  const lv=(days[cur]&&days[cur].lv)||{};
+  const swatch="<span class='daysw'>"+CATS.map(c=>"<i class='"+(lv[c.id]||"unset")+"'></i>").join("")+"</span>";
+  const t=dayTier(cur);
+  if(!t){ el.innerHTML=swatch+"Nothing set yet — pick a level for each category."; return; }
+  const f=fullCount(cur), on=CATS.filter(c=>hit(cur,c.id)).length;
+  el.innerHTML = swatch+"Day reads as <b>"+LVNAME[t]+"</b> — "+f+" full · "+(on-f)+" floor · "+(CATS.length-on)+" none. <span style='opacity:.7'>(3+ full = a Full day)</span>";
+}
+
 const jEl=document.getElementById("journal");
 jEl.oninput=()=>{ d0.journal=jEl.value; clearTimeout(jEl._t); jEl._t=setTimeout(persist,600); };
 const shipWrap=document.getElementById("shipField"), shipEl=document.getElementById("ship");
@@ -403,10 +455,10 @@ shipEl.oninput=()=>{ d0.ship=shipEl.value; clearTimeout(shipEl._t); shipEl._t=se
 
 function renderTomorrow(){
   const el=document.getElementById("tomorrowPills"); el.innerHTML="";
-  ["full","maintenance","floor"].forEach(t=>{
+  ["full","floor"].forEach(t=>{
     const b=document.createElement("button");
     b.className="pill"+(d0.next===t?" sel":"");
-    b.textContent=t==="maintenance"?"Maint.":t[0].toUpperCase()+t.slice(1);
+    b.textContent=LVNAME[t];
     b.onclick=()=>{ d0.next = d0.next===t?null:t; renderTomorrow(); persist(); };
     el.appendChild(b);
   });
@@ -424,13 +476,102 @@ function setDay(k){
   const showShip = d.getDay()===0 || d0.ship;
   shipWrap.style.display = showShip?"block":"none";
   shipEl.value=d0.ship||"";
-  renderTiers(); renderChecks(); renderTomorrow();
+  renderLevels(); renderDaySum(); renderTomorrow();
 }
 document.getElementById("prevDay").onclick=()=>setDay(fmt(addDays(parse(cur),-1)));
 document.getElementById("nextDay").onclick=()=>{ if(cur<TK) setDay(fmt(addDays(parse(cur),1))); };
 
+// ---------- view switching ----------
+const tabTrack=document.getElementById("tabTrack"), tabLog=document.getElementById("tabLog");
+const viewTrack=document.getElementById("viewTrack"), viewLog=document.getElementById("viewLog");
+function setView(v){
+  const isLog = v==="log";
+  viewTrack.style.display = isLog?"none":"block";
+  viewLog.style.display   = isLog?"block":"none";
+  tabTrack.className = "tab"+(isLog?"":" sel");
+  tabLog.className   = "tab"+(isLog?" sel":"");
+  if(isLog) renderLog();
+  window.scrollTo(0,0);
+}
+tabTrack.onclick=()=>setView("track");
+tabLog.onclick=()=>setView("log");
+
+// ---------- log page ----------
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+let openRows = {};   // which log rows are expanded
+function hasContent(k){
+  const d=days[k]; if(!d) return false;
+  if(dayTier(k)) return true;
+  if(d.journal && d.journal.trim()) return true;
+  if(d.ship && d.ship.trim()) return true;
+  if(d.det && Object.values(d.det).some(v=>v && v.trim())) return true;
+  return false;
+}
+function renderLog(){
+  const el=document.getElementById("logList"); el.innerHTML="";
+  const keys=Object.keys(days).filter(k=>k<=TK && hasContent(k)).sort().reverse();
+  if(!keys.length){
+    el.innerHTML="<div class='locked'>Nothing logged yet. Set levels on the tracker and the day shows up here — compressed. Tap any row to read what you wrote.</div>";
+    return;
+  }
+  let lastMonth="";
+  keys.forEach(k=>{
+    const d=days[k], dt=parse(k), t=dayTier(k);
+    const mo=dt.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+    if(mo!==lastMonth){
+      const h=document.createElement("div"); h.className="logmonth"; h.textContent=mo;
+      el.appendChild(h); lastMonth=mo;
+    }
+    const row=document.createElement("div");
+    row.className="logrow"+(openRows[k]?" open":"");
+
+    // ---- compressed head ----
+    const head=document.createElement("div"); head.className="loghead";
+    const done=CATS.filter(c=>hit(k,c.id));
+    const bits=[];
+    if(t) bits.push(LVNAME[t]);
+    bits.push(done.length ? done.map(c=>c.name).join(", ") : "no categories");
+    const j=(d.journal||"").trim();
+    if(j) bits.push("“"+j.slice(0,60)+(j.length>60?"…":"")+"”");
+    head.innerHTML =
+      "<span class='logdot "+(t||"")+"'></span>"+
+      "<span class='logdate'>"+esc(WD[dt.getDay()].slice(0,3)+", "+dt.toLocaleDateString(undefined,{month:"short",day:"numeric"}))+"</span>"+
+      "<span class='logsum'>"+esc(bits.join(" · "))+"</span>"+
+      "<span class='logchev'>›</span>";
+    head.onclick=()=>{ openRows[k]=!openRows[k]; renderLog(); };
+    row.appendChild(head);
+
+    // ---- expanded body ----
+    if(openRows[k]){
+      const body=document.createElement("div"); body.className="logbody";
+      let h="";
+      CATS.forEach(c=>{
+        const lv=(d.lv&&d.lv[c.id])||null;
+        if(!lv) return;
+        const txt=(d.det&&d.det[c.id]||"").trim();
+        h+="<div class='lb'><span class='lbt'>"+esc(c.name)+"</span>"+
+           "<span class='lvtag "+lv+"'>"+LVNAME[lv]+"</span>"+
+           (txt?"<div>"+esc(txt)+"</div>":(lv==="none"?"":"<div class='muted'>no detail written</div>"))+
+           "</div>";
+      });
+      if(d.journal && d.journal.trim())
+        h+="<div class='lb'><span class='lbt'>Decision journal</span><div>"+esc(d.journal.trim())+"</div></div>";
+      if(d.ship && d.ship.trim())
+        h+="<div class='lb'><span class='lbt'>Shipped</span><div>"+esc(d.ship.trim())+"</div></div>";
+      if(d.next)
+        h+="<div class='lb'><span class='lbt'>Planned for next day</span><div>"+LVNAME[d.next]+"</div></div>";
+      body.innerHTML=h || "<div class='muted'>Nothing written for this day.</div>";
+      const ed=document.createElement("button"); ed.className="logedit"; ed.textContent="Open this day in the tracker";
+      ed.onclick=()=>{ setDay(k); setView("track"); };
+      body.appendChild(ed);
+      row.appendChild(body);
+    }
+    el.appendChild(row);
+  });
+}
+
 // ---------- streaks ----------
-function nonZero(k){ const d=days[k]; return d && d.tier && d.tier!=="zero"; }
+function nonZero(k){ const t=dayTier(k); return !!t && t!=="none"; }
 function streakCount(){
   let n=0, c=new Date(today);
   if(!nonZero(TK)) c=addDays(c,-1);              // today not logged yet doesn't break it
@@ -448,21 +589,22 @@ function renderStreak(){
   document.getElementById("streak").innerHTML =
     s>0 ? "<b>"+s+"</b> non-zero day"+(s===1?"":"s") : "start today";
 }
-// per-category streak: consecutive days ending today (today not yet checked doesn't break it)
+// per-category streak: consecutive days ending today (today not yet set doesn't break it)
 function catStreak(cat){
   let n=0, c=new Date(today);
-  if(!(days[TK] && days[TK][cat])) c=addDays(c,-1);
-  while(days[fmt(c)] && days[fmt(c)][cat]){ n++; c=addDays(c,-1); }
+  if(!hit(TK,cat)) c=addDays(c,-1);
+  while(hit(fmt(c),cat)){ n++; c=addDays(c,-1); }
   return n;
 }
 function renderCats(){
   const el=document.getElementById("catStreaks"); el.innerHTML="";
-  CHECKS.forEach(c=>{
-    const done=!!(days[TK] && days[TK][c.id]);
+  CATS.forEach(c=>{
+    const lv = (days[TK] && days[TK].lv && days[TK].lv[c.id]) || null;
+    const done = lv && lv!=="none";
     const s=catStreak(c.id);
     const div=document.createElement("div");
     div.className="cat"+(done?" done":"");
-    div.innerHTML=`<div class="cs">${s}<small> d</small></div><div class="cn">${c.name}</div><div class="cm">${done?"✓ done today":"not done"}</div>`;
+    div.innerHTML=`<div class="cs">${s}<small> d</small></div><div class="cn">${c.name}</div><div class="cm">${done?"✓ "+LVNAME[lv].toLowerCase()+" today":"not done"}</div>`;
     el.appendChild(div);
   });
 }
@@ -472,10 +614,10 @@ function crunchOn(){ return settings.crunchEnd && settings.crunchEnd >= TK; }
 function renderBanners(){
   const el=document.getElementById("banners"); el.innerHTML="";
   const add=(cls,txt)=>{ const b=document.createElement("div"); b.className="banner "+cls; b.textContent=txt; el.appendChild(b); };
-  const t=days[TK], y=days[yk];
-  if(y && y.tier==="zero" && (!t || !t.tier || t.tier==="zero"))
-    add("alert","Yesterday was a zero. Today is a floor day — never miss twice, never repay debt.");
-  else if(plannedTier && (!t || !t.tier))
+  const t=dayTier(TK), y=dayTier(yk);
+  if(y==="none" && (!t || t==="none"))
+    add("alert","Yesterday was a none. Today is a floor day — never miss twice, never repay debt.");
+  else if(plannedTier && !t)
     add("calm","Last night you planned a "+plannedTier+" day. Execute the pre-made decision — don't renegotiate it.");
   if(crunchOn())
     add("calm","Crunch mode until "+settings.crunchEnd+". Floor days count as full compliance. Zero guilt.");
@@ -520,25 +662,32 @@ function renderHorizons(){
   }
 }
 
-// ---------- heatmap (last 8 weeks, ends this week) ----------
+// ---------- heatmap (week one at the TOP, each new week added below) ----------
 function renderHeat(){
   const el=document.getElementById("heat"); el.innerHTML="";
-  const end=addDays(today, 6-today.getDay());
-  const start=addDays(end,-55);
-  for(let i=0;i<56;i++){
-    const d=addDays(start,i), k=fmt(d);
-    const c=document.createElement("div");
-    c.className="cell";
-    const rec=days[k];
-    if(d<=today && rec && rec.tier) c.classList.add(rec.tier);
-    if(k===TK) c.classList.add("today");
-    c.title=k+(rec&&rec.tier?" — "+rec.tier:"");
-    el.appendChild(c);
+  const s=parse(settings.start);
+  const startSun=addDays(s, -s.getDay());              // Sunday of the week you began
+  const endSat=addDays(today, 6-today.getDay());       // Saturday of this week
+  const span=Math.round((endSat-startSun)/864e5);
+  const weeks=Math.max(8, Math.round((span+1)/7));     // grows one row per week, min 8 rows
+  for(let w=0; w<weeks; w++){                          // w=0 is week one → top row
+    for(let i=0;i<7;i++){
+      const d=addDays(startSun, w*7+i), k=fmt(d);
+      const c=document.createElement("div");
+      c.className="cell";
+      const t=dayTier(k);
+      if(d<=today && t) c.classList.add(t);
+      if(k===TK) c.classList.add("today");
+      c.title=k+(t?" — "+LVNAME[t]:"");
+      el.appendChild(c);
+    }
   }
+  const lbl=document.getElementById("heatLabel");
+  if(lbl) lbl.textContent="Week 1 at the top — "+weeks+" week"+(weeks===1?"":"s")+" and counting";
 }
 
 // ---------- insights engine (gets smarter with data) ----------
-function loggedKeys(){ return Object.keys(days).filter(k=>days[k].tier && k<=TK).sort(); }
+function loggedKeys(){ return Object.keys(days).filter(k=>dayTier(k) && k<=TK).sort(); }
 function renderInsights(){
   const el=document.getElementById("insights"); el.innerHTML="";
   const keys=loggedKeys(), n=keys.length;
@@ -549,17 +698,17 @@ function renderInsights(){
 
   // level 1: distribution (3+ days)
   const last30=keys.filter(k=>dayDiff(k,TK)<30);
-  const count=t=>last30.filter(k=>days[k].tier===t).length;
-  const nz=last30.filter(k=>days[k].tier!=="zero").length;
+  const count=t=>last30.filter(k=>dayTier(k)===t).length;
+  const nz=last30.filter(k=>dayTier(k)!=="none").length;
   add("Consistency — last 30 days",
-    `<b>${nz}/${last30.length}</b> non-zero (${count("full")} full · ${count("maintenance")} maintenance · ${count("floor")} floor · ${count("zero")} zero).`);
+    `<b>${nz}/${last30.length}</b> non-zero (${count("full")} full · ${count("floor")} floor · ${count("none")} none).`);
 
   // weakest category (last 14 logged days)
   const last14=keys.filter(k=>dayDiff(k,TK)<14);
   if(last14.length>=5){
     let weak=null, weakRate=1.01;
-    CHECKS.forEach(c=>{
-      const r=last14.filter(k=>days[k][c.id]).length/last14.length;
+    CATS.forEach(c=>{
+      const r=last14.filter(k=>hit(k,c.id)).length/last14.length;
       if(r<weakRate){ weakRate=r; weak=c; }
     });
     if(weak && weakRate<0.5)
@@ -567,7 +716,7 @@ function renderInsights(){
   }
 
   // deep-work vs training balance
-  const dw=last30.filter(k=>days[k].deep).length, tr=last30.filter(k=>days[k].train).length;
+  const dw=last30.filter(k=>hit(k,"deep")).length, tr=last30.filter(k=>hit(k,"train")).length;
   if(tr>=3 && tr-dw>=4)
     add("Balance","Training is outpacing deep work ("+tr+" vs "+dw+" days). Body is the old comfort zone — the bet was building the same depth in the intellectual work.");
   else if(dw-tr>=4)
@@ -576,16 +725,13 @@ function renderInsights(){
   // level 2: weekday analysis (7+ days)
   if(n>=7){
     const wd=Array.from({length:7},()=>({z:0,t:0}));
-    keys.forEach(k=>{ const g=parse(k).getDay(); wd[g].t++; if(days[k].tier==="zero"||days[k].tier==="floor") wd[g].z++; });
+    keys.forEach(k=>{ const g=parse(k).getDay(), t=dayTier(k); wd[g].t++; if(t==="none"||t==="floor") wd[g].z++; });
     let worst=-1,rate=0;
     wd.forEach((w,i)=>{ if(w.t>=2 && w.z/w.t>rate){ rate=w.z/w.t; worst=i; } });
     if(worst>=0 && rate>=0.5)
-      add("Weekday pattern", WD[worst]+"s are your weakest ("+Math.round(rate*100)+"% floor-or-zero). Pre-plan "+WD[worst]+" as a maintenance day — pre-made decisions beat morning negotiations.");
+      add("Weekday pattern", WD[worst]+"s are your weakest ("+Math.round(rate*100)+"% floor-or-none). Pre-plan "+WD[worst]+" as a floor day — pre-made decisions beat morning negotiations.");
     else
-      add("Weekday pattern","No weak weekday yet — tiers are holding across the week.");
-    const pr=last14.filter(k=>days[k].pf && Object.values(days[k].pf).some(Boolean)).length;
-    if(last14.length>=5)
-      add("Proof rate", pr+"/"+last14.length+" days with photo evidence. "+(pr/last14.length>=0.5?"Receipts are accumulating.":"A claim without a receipt is just a claim — snap the barbell, the book page, the voice-memo screen."));
+      add("Weekday pattern","No weak weekday yet — levels are holding across the week.");
     const sundays=keys.filter(k=>parse(k).getDay()===0);
     const shipped=sundays.filter(k=>days[k].ship && days[k].ship.trim()).length;
     if(sundays.length>=2)
@@ -596,18 +742,18 @@ function renderInsights(){
 
   // level 3: trend + design check (21+ days)
   if(n>=21){
-    const low=last14.filter(k=>["floor","zero"].includes(days[k].tier)).length;
+    const low=last14.filter(k=>["floor","none"].includes(dayTier(k))).length;
     if(low>=10 && !crunchOn())
-      add("Design check","10+ of the last 14 days were floor-or-zero outside crunch mode. Per the playbook: that's a design problem, not a discipline problem — shrink the system at Sunday review instead of abandoning it.");
-    const score=k=>({full:3,maintenance:2,floor:1,zero:0})[days[k].tier]??0;
+      add("Design check","10+ of the last 14 days were floor-or-none outside crunch mode. Per the playbook: that's a design problem, not a discipline problem — shrink the system at Sunday review instead of abandoning it.");
+    const score=k=>CATS.reduce((s,c)=>s+(SCORE[(days[k].lv||{})[c.id]]||0),0);
     const prev14=keys.filter(k=>{const d=dayDiff(k,TK); return d>=14&&d<28;});
     if(prev14.length>=7){
       const a=last14.reduce((s,k)=>s+score(k),0)/Math.max(1,last14.length);
       const b=prev14.reduce((s,k)=>s+score(k),0)/prev14.length;
       const diff=a-b;
-      add("Momentum", diff>0.3?"Trending up — average tier is rising versus the prior two weeks.":
-        diff<-0.3?"Trending down versus the prior two weeks. Downshift deliberately (declare crunch or plan maintenance days) before the system downshifts for you.":
-        "Steady — average tier is flat versus the prior two weeks. Boring is the feature.");
+      add("Momentum", diff>0.6?"Trending up — average level is rising versus the prior two weeks.":
+        diff<-0.6?"Trending down versus the prior two weeks. Downshift deliberately (declare crunch or plan floor days) before the system downshifts for you.":
+        "Steady — average level is flat versus the prior two weeks. Boring is the feature.");
     }
     const jr=last30.filter(k=>days[k].journal && days[k].journal.trim().length>10).length;
     add("Judgment record", jr+"/"+last30.length+" days with a real journal entry. "+(jr/Math.max(1,last30.length)>=0.6?"The audit trail is building — this is what quiet confidence gets built from.":"The decision journal is the Mind pillar. One honest sentence beats a blank."));
@@ -636,7 +782,7 @@ function renderPark(){
   park.forEach((p,i)=>{
     const row=document.createElement("div"); row.className="park-item";
     const age=dayDiff(p.date,TK);
-    row.innerHTML=`<span style="flex:1">${p.text.replace(/</g,"&lt;")}${age>=28?" <span class='hear'>· earned a hearing at the quarterly</span>":""}</span>
+    row.innerHTML=`<span style="flex:1">${esc(p.text)}${age>=28?" <span class='hear'>· earned a hearing at the quarterly</span>":""}</span>
       <span class="d">${p.date.slice(5)}</span>`;
     const x=document.createElement("button"); x.textContent="×";
     x.onclick=()=>{ park.splice(i,1); save(K.park,park); renderPark(); };
@@ -682,7 +828,7 @@ function importData(inp){
 // ---------- init ----------
 setDay(TK);
 renderStreak(); renderCats(); renderBanners(); renderHorizons();
-renderHeat(); renderInsights(); renderPark(); renderCrunch();
+renderHeat(); renderInsights(); renderPark(); renderCrunch(); renderLog();
 save(K.days,days); save(K.settings,settings);
 
 // offline support when hosted (ignored when opened as a local file)
