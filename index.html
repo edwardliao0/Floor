@@ -14,7 +14,7 @@
 <style>
   :root{
     --bg:#fafaf7; --card:#ffffff; --ink:#111111; --sub:#111111; --line:#e8e8e2;
-    /* the level scale — identical for every category: black / grey / white */
+    /* the level scale — identical for every habit: black / grey / white */
     --full:#111111; --floorc:#9a9a9a; --nonec:#ffffff; --noneb:#b4b4ae;
     --fullink:#ffffff; --floorink:#ffffff; --noneink:#111111;
     --alert:#c0392b; --good:#1a7f4e;
@@ -52,13 +52,17 @@
     font-family:inherit; transition:all .12s}
   .tab.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
   /* day navigation */
-  .labelrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px}
+  .labelrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px}
   .labelrow .label{margin-bottom:0}
+  .nav{display:flex; gap:6px; align-items:center; flex-shrink:0}
   .nav button{border:1px solid var(--line); background:transparent; color:var(--ink);
     border-radius:8px; width:30px; height:30px; font-size:16px; cursor:pointer; font-family:inherit}
   .nav button:disabled{opacity:.25; cursor:default}
+  .editbtn{width:auto !important; padding:0 11px; font-size:12px !important; color:var(--sub) !important;
+    font-weight:550}
+  .editbtn.on{background:var(--ink) !important; color:var(--bg) !important; border-color:var(--ink) !important}
   .backfill{font-size:11px; color:var(--alert); margin-left:8px; font-weight:600; text-transform:none; letter-spacing:0}
-  /* per-category level rows */
+  /* per-habit level rows */
   .lvrow{padding:12px 0; border-bottom:1px solid var(--line)}
   .lvrow:first-child{padding-top:0}
   .lvrow:last-child{border-bottom:none; padding-bottom:0}
@@ -75,15 +79,43 @@
   .lvdet input{width:100%; padding:7px 10px; font-size:13px; border:1px solid var(--line); border-radius:8px}
   .daysum{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
     font-size:12.5px; color:var(--sub); display:flex; align-items:center; gap:8px}
-  /* multi-colored day swatch — one stripe per category, in category order */
-  .daysw{display:flex; width:34px; height:13px; border-radius:4px; overflow:hidden;
+  /* multi-colored day swatch — one stripe per habit, in habit order */
+  .daysw{display:flex; min-width:34px; height:13px; border-radius:4px; overflow:hidden;
     flex-shrink:0; border:1px solid var(--line)}
-  .daysw i{flex:1; display:block}
+  .daysw i{flex:1; display:block; min-width:5px}
   .daysw i.full{background:var(--full)}
   .daysw i.floor{background:var(--floorc)}
   .daysw i.none{background:var(--nonec)}
   .daysw i.unset{background:var(--line); opacity:.6}
   .daysum b{color:var(--ink); font-weight:650}
+  /* habit editor */
+  .edrow{display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid var(--line)}
+  .edrow:first-child{padding-top:0}
+  .edrow input{flex:1; min-width:0; padding:7px 10px; font-size:13px;
+    border:1px solid var(--line); border-radius:8px}
+  .edbtn{border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:7px;
+    width:30px; height:30px; font-size:13px; cursor:pointer; flex-shrink:0; font-family:inherit;
+    line-height:1; padding:0}
+  .edbtn:disabled{opacity:.22; cursor:default}
+  .edbtn.danger{color:var(--alert); border-color:color-mix(in srgb, var(--alert) 35%, var(--line))}
+  .edsec{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--sub);
+    font-weight:600; margin:18px 0 2px}
+  .edadd{display:flex; gap:6px; margin-top:12px}
+  .edadd input{flex:1; min-width:0; padding:8px 10px; font-size:13px;
+    border:1px solid var(--line); border-radius:8px}
+  .edadd button{border:1px solid var(--ink); background:var(--ink); color:var(--bg);
+    border-radius:8px; padding:0 14px; height:34px; font-size:13px; font-weight:550;
+    cursor:pointer; font-family:inherit; flex-shrink:0}
+  .edarch{display:flex; align-items:center; gap:8px; padding:7px 0; font-size:13px;
+    color:var(--sub); border-bottom:1px solid var(--line)}
+  .edarch:last-child{border-bottom:none}
+  .edarch span{flex:1}
+  .edarch button{border:1px solid var(--line); background:transparent; color:var(--sub);
+    border-radius:7px; padding:4px 10px; font-size:11.5px; cursor:pointer; font-family:inherit; flex-shrink:0}
+  .edhint{font-size:11.5px; color:var(--sub); margin-top:14px; line-height:1.55; opacity:.85}
+  .archtag{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--sub);
+    opacity:.65; margin-left:6px; font-weight:600}
+  /* generic inputs */
   input[type=text], textarea, input[type=date], select{
     width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
     font-size:14px; font-family:inherit; background:transparent; color:var(--ink);
@@ -99,7 +131,7 @@
   .pill{border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px;
     cursor:pointer; background:transparent; color:var(--sub); font-family:inherit}
   .pill.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-  /* per-category streaks */
+  /* per-habit streaks */
   .cats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
   .cat{border:1px solid var(--line); border-radius:10px; padding:10px 6px; text-align:center}
   .cat .cs{font-size:19px; font-weight:650; letter-spacing:-.02em}
@@ -196,6 +228,7 @@
     .chk{padding:10px 16px}
     .hz .num{font-size:19px}
     .logdate{width:78px; font-size:12.5px}
+    .edrow input, .edadd input{font-size:16px}
   }
 </style>
 </head>
@@ -224,29 +257,32 @@
     <div class="labelrow">
       <div class="label"><span id="todayLabel">Today</span><span class="backfill" id="backfillTag"></span></div>
       <div class="nav">
+        <button id="editHabits" class="editbtn" title="Add, rename or archive habits">Edit</button>
         <button id="prevDay" title="Previous day">‹</button>
         <button id="nextDay" title="Next day">›</button>
       </div>
     </div>
     <div id="catLevels"></div>
-    <div class="daysum" id="daySum"></div>
-    <div class="field">
-      <div class="hint">Decision journal — one call you made today, and why</div>
-      <textarea id="journal" rows="2" placeholder="e.g. Passed on X because…"></textarea>
-    </div>
-    <div class="field" id="shipField" style="display:none">
-      <div class="hint">Sunday — what did you ship this week?</div>
-      <input type="text" id="ship" placeholder="Memo section, model tab, 500-word write-up…">
-    </div>
-    <div class="tomorrow">
-      <div class="hint">Tomorrow's tier — decide tonight, not tomorrow morning</div>
-      <div class="pills" id="tomorrowPills"></div>
+    <div id="dayExtras">
+      <div class="daysum" id="daySum"></div>
+      <div class="field">
+        <div class="hint">Decision journal — one call you made today, and why</div>
+        <textarea id="journal" rows="2" placeholder="e.g. Passed on X because…"></textarea>
+      </div>
+      <div class="field" id="shipField" style="display:none">
+        <div class="hint">Sunday — what did you ship this week?</div>
+        <input type="text" id="ship" placeholder="Memo section, model tab, 500-word write-up…">
+      </div>
+      <div class="tomorrow">
+        <div class="hint">Tomorrow's tier — decide tonight, not tomorrow morning</div>
+        <div class="pills" id="tomorrowPills"></div>
+      </div>
     </div>
   </div>
 
-  <!-- CATEGORY STREAKS -->
+  <!-- HABIT STREAKS -->
   <div class="card">
-    <div class="label">Streaks by category</div>
+    <div class="label">Streaks by habit</div>
     <div class="cats" id="catStreaks"></div>
   </div>
 
@@ -314,22 +350,35 @@
 <script>
 "use strict";
 // ---------- storage ----------
-const K = { days:"floor.days", settings:"floor.settings", park:"floor.park" };
+const K = { days:"floor.days", settings:"floor.settings", park:"floor.park", cats:"floor.cats" };
 const load = (k,d) => { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
 const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
 
-let days = load(K.days, {});           // {"2026-07-09":{lv:{train:"full",…},det,journal,ship,next}}
+let days = load(K.days, {});           // {"2026-07-09":{lv:{train:"full",…},det,journal,ship,next,n}}
 let settings = load(K.settings, {});   // {start, crunchEnd}
 let park = load(K.park, []);           // [{date,text}]
 
-// ---------- categories & levels ----------
-const CATS = [
+// ---------- habits (editable) ----------
+const DEFAULT_CATS = [
   {id:"train", name:"Trained",       ph:"e.g. Full Body A — front squat 5×5 @ 185"},
   {id:"deep",  name:"Deep work",     ph:"e.g. 70 min — LMT 10-K, segment margins"},
   {id:"cuff",  name:"Articulate",    ph:"e.g. 2-min voice memo — pitched HON, listened back"},
   {id:"read",  name:"Read 10 pages", ph:"e.g. Xunzi ch.1, pp. 12–24"},
   {id:"breath",name:"Breathwork",    ph:"e.g. 10 min box breathing"},
 ];
+let cats = load(K.cats, null);
+if(!Array.isArray(cats) || !cats.length) cats = DEFAULT_CATS.map(c=>({...c}));
+cats = cats.filter(c => c && typeof c.id==="string" && typeof c.name==="string");
+if(!cats.length) cats = DEFAULT_CATS.map(c=>({...c}));
+
+const active   = () => cats.filter(c=>!c.archived);
+const archived = () => cats.filter(c=>c.archived);
+const catById  = id => cats.find(c=>c.id===id);
+const catName  = id => { const c=catById(id); return c ? c.name : id; };
+const catPh    = id => { const c=catById(id); return (c&&c.ph) || "what specifically did you do?"; };
+function saveCats(){ save(K.cats, cats); }
+function newCatId(){ let id; do{ id="h"+Math.random().toString(36).slice(2,8); }while(catById(id)); return id; }
+
 const LEVELS = [
   {id:"full",  name:"Full"},
   {id:"floor", name:"Floor"},
@@ -337,6 +386,7 @@ const LEVELS = [
 ];
 const SCORE = {full:2, floor:1, none:0};
 const LVNAME = {full:"Full", floor:"Floor", none:"None"};
+const isLevel = v => v==="full" || v==="floor" || v==="none";
 
 // ---------- migration from the old single-tier model ----------
 const OLD2LV = {full:"full", maintenance:"floor", floor:"floor", zero:"none"};
@@ -346,11 +396,12 @@ Object.values(days).forEach(d=>{
   if(d.pf) delete d.pf;                                                         // photo feature removed
   if(!d.lv){
     const base = OLD2LV[d.tier] || null;
-    if(base || CATS.some(c=>d[c.id])){
+    if(base || DEFAULT_CATS.some(c=>d[c.id])){
       d.lv = {};
-      CATS.forEach(c=>{
+      DEFAULT_CATS.forEach(c=>{
         d.lv[c.id] = d[c.id] ? (base && base!=="none" ? base : "floor") : "none";
       });
+      d.n = DEFAULT_CATS.length;
     }
   }
   if(d.next==="maintenance") d.next="floor";
@@ -367,22 +418,32 @@ const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturda
 if(!settings.start){ settings.start = TK; save(K.settings, settings); }
 
 // ---------- derived day tier ----------
-// 3+ categories at Full  → Full day
-// at least one non-None  → Floor day
-// all five set to None   → None day
-// nothing set at all     → not logged (null)
+// majority of that day's habits at Full → Full day
+// at least one habit above None         → Floor day
+// every habit set to None               → None day
+// nothing set at all                    → not logged (null)
+// The roster size is stored per day (d.n) so adding or archiving a habit
+// never retroactively rewrites your history.
+function rosterSize(k){
+  const d=days[k];
+  if(d && d.n>0) return d.n;
+  if(d && d.lv){ const n=Object.keys(d.lv).filter(id=>isLevel(d.lv[id])).length; if(n) return n; }
+  return Math.max(1, active().length);
+}
+function fullsNeeded(n){ return Math.floor(n/2)+1; }   // majority: 3 of 5, 2 of 3, 6 of 10
+function dayLevels(k){
+  const d=days[k]; if(!d||!d.lv) return [];
+  return Object.keys(d.lv).filter(id=>isLevel(d.lv[id])).map(id=>d.lv[id]);
+}
 function dayTier(k){
-  const d = days[k];
-  if(!d || !d.lv) return null;
-  const vals = CATS.map(c=>d.lv[c.id]).filter(v=>v);
+  const vals=dayLevels(k);
   if(!vals.length) return null;
-  const fulls = vals.filter(v=>v==="full").length;
-  if(fulls>=3) return "full";
+  const fulls=vals.filter(v=>v==="full").length;
+  if(fulls >= fullsNeeded(rosterSize(k))) return "full";
   if(vals.some(v=>v!=="none")) return "floor";
   return "none";
 }
-function fullCount(k){ const d=days[k]; if(!d||!d.lv) return 0;
-  return CATS.filter(c=>d.lv[c.id]==="full").length; }
+function fullCount(k){ return dayLevels(k).filter(v=>v==="full").length; }
 function hit(k,cat){ const d=days[k]; return !!(d && d.lv && d.lv[cat] && d.lv[cat]!=="none"); }
 
 // yesterday's chosen "next" is a reminder, never an auto-log
@@ -392,24 +453,35 @@ const plannedTier = !dayTier(TK) && days[yk] && days[yk].next ? days[yk].next : 
 // current day being viewed/edited (supports backfill)
 let cur = TK;
 let d0 = days[TK] = days[TK] || {};
+let editing = false;
 
 // ---------- persistence ----------
 let saveT;
-function persist(){
-  save(K.days, days);
+function flash(){
   clearTimeout(saveT);
   const s=document.getElementById("saved");
   s.classList.add("show");
   saveT=setTimeout(()=>s.classList.remove("show"), 900);
+}
+function persist(){
+  save(K.days, days);
+  flash();
   renderStreak(); renderCats(); renderHeat(); renderInsights(); renderBanners();
   renderHorizons(); renderDaySum(); renderLog();
 }
 
-// ---------- day card: one Full / Floor / None control per category ----------
+// ---------- day card ----------
+function renderDayBody(){ editing ? renderEditor() : renderLevels(); }
+
 function renderLevels(){
   const el=document.getElementById("catLevels"); el.innerHTML="";
   d0.lv = d0.lv || {}; d0.det = d0.det || {};
-  CATS.forEach(c=>{
+  const act=active();
+  if(!act.length){
+    el.innerHTML="<div class='locked'>No habits yet. Tap <b>Edit</b> above to add your first one.</div>";
+    return;
+  }
+  act.forEach(c=>{
     const row=document.createElement("div"); row.className="lvrow";
     const head=document.createElement("div"); head.className="lvhead";
     const nm=document.createElement("span"); nm.className="lvname"; nm.textContent=c.name;
@@ -421,31 +493,143 @@ function renderLevels(){
       b.onclick=()=>{
         d0.lv[c.id] = d0.lv[c.id]===L.id ? undefined : L.id;
         if(d0.lv[c.id]===undefined) delete d0.lv[c.id];
+        d0.n = act.length;                       // remember the roster size for this day
         renderLevels(); persist();
       };
       sel.appendChild(b);
     });
     head.appendChild(nm); head.appendChild(sel); row.appendChild(head);
-    // detail line only when the category actually happened
+    // detail line only when the habit actually happened
     if(d0.lv[c.id] && d0.lv[c.id]!=="none"){
       const wrap=document.createElement("div"); wrap.className="lvdet";
       const inp=document.createElement("input"); inp.type="text";
-      inp.placeholder=c.ph; inp.value=(d0.det&&d0.det[c.id])||"";
+      inp.placeholder=c.ph||catPh(c.id); inp.value=(d0.det&&d0.det[c.id])||"";
       inp.oninput=()=>{ d0.det[c.id]=inp.value; clearTimeout(inp._t); inp._t=setTimeout(persist,600); };
       wrap.appendChild(inp); row.appendChild(wrap);
     }
     el.appendChild(row);
   });
 }
+
+// ---------- habit editor (add / rename / reorder / archive) ----------
+function moveCat(id, dir){
+  const act=active();
+  const i=act.findIndex(c=>c.id===id), j=i+dir;
+  if(i<0 || j<0 || j>=act.length) return;
+  const ai=cats.indexOf(act[i]), aj=cats.indexOf(act[j]);
+  const tmp=cats[ai]; cats[ai]=cats[aj]; cats[aj]=tmp;
+  saveCats(); flash(); renderEditor(); refreshAll();
+}
+function archiveCat(id){
+  if(active().length<=1) return;                 // never leave zero habits
+  const c=catById(id); if(!c) return;
+  c.archived=true; saveCats(); flash(); renderEditor(); refreshAll();
+}
+function restoreCat(id){
+  const c=catById(id); if(!c) return;
+  delete c.archived; saveCats(); flash(); renderEditor(); refreshAll();
+}
+function addCat(name){
+  name=(name||"").trim().slice(0,42);
+  if(!name) return false;
+  cats.push({id:newCatId(), name, ph:"what specifically did you do?"});
+  saveCats(); flash(); renderEditor(); refreshAll();
+  return true;
+}
+function renderEditor(){
+  const el=document.getElementById("catLevels"); el.innerHTML="";
+  const act=active(), arc=archived();
+
+  act.forEach((c,i)=>{
+    const row=document.createElement("div"); row.className="edrow";
+    const inp=document.createElement("input"); inp.type="text"; inp.value=c.name;
+    inp.maxLength=42; inp.setAttribute("aria-label","Habit name");
+    const commit=(fromBlur)=>{
+      const v=(inp.value||"").trim();
+      c.name = v || (fromBlur ? "Untitled habit" : inp.value);
+      if(fromBlur) inp.value=c.name;
+      saveCats(); refreshAll();
+    };
+    inp.oninput=()=>{ clearTimeout(inp._t); inp._t=setTimeout(()=>commit(false),400); };
+    inp.onblur =()=>{ clearTimeout(inp._t); commit(true); };
+
+    const up=document.createElement("button"); up.className="edbtn"; up.textContent="↑";
+    up.title="Move up"; up.disabled=(i===0); up.onclick=()=>moveCat(c.id,-1);
+
+    const dn=document.createElement("button"); dn.className="edbtn"; dn.textContent="↓";
+    dn.title="Move down"; dn.disabled=(i===act.length-1); dn.onclick=()=>moveCat(c.id,1);
+
+    const rm=document.createElement("button"); rm.className="edbtn danger"; rm.textContent="×";
+    rm.title=act.length<=1?"You need at least one habit":"Archive (keeps your history)";
+    rm.disabled=(act.length<=1); rm.onclick=()=>archiveCat(c.id);
+
+    row.appendChild(inp); row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
+    el.appendChild(row);
+  });
+
+  // add new
+  const add=document.createElement("div"); add.className="edadd";
+  const ai=document.createElement("input"); ai.type="text"; ai.placeholder="New habit — e.g. Cold shower";
+  ai.maxLength=42;
+  const ab=document.createElement("button"); ab.textContent="Add";
+  const doAdd=()=>{ if(addCat(ai.value)){ const box=document.querySelector(".edadd input"); if(box) box.focus(); } };
+  ab.onclick=doAdd;
+  ai.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); doAdd(); } };
+  add.appendChild(ai); add.appendChild(ab); el.appendChild(add);
+
+  // archived
+  if(arc.length){
+    const h=document.createElement("div"); h.className="edsec";
+    h.textContent="Archived — history kept, not tracked"; el.appendChild(h);
+    arc.forEach(c=>{
+      const row=document.createElement("div"); row.className="edarch";
+      const s=document.createElement("span"); s.textContent=c.name;
+      const b=document.createElement("button"); b.textContent="Restore";
+      b.onclick=()=>restoreCat(c.id);
+      row.appendChild(s); row.appendChild(b); el.appendChild(row);
+    });
+  }
+
+  const hint=document.createElement("div"); hint.className="edhint";
+  hint.innerHTML="Renaming keeps every past entry attached — the habit's identity doesn't change. "+
+    "Archiving hides a habit from the tracker and from streaks, but your old levels and notes stay "+
+    "readable in the Log, and you can restore it any time. Nothing here deletes anything.<br><br>"+
+    "A <b>Full day</b> is a majority of your habits at Full — with "+Math.max(1,act.length)+
+    " habit"+(act.length===1?"":"s")+" that's <b>"+fullsNeeded(Math.max(1,act.length))+"</b>.";
+  el.appendChild(hint);
+}
+
+function setEditing(on){
+  editing=on;
+  const b=document.getElementById("editHabits");
+  b.textContent = on ? "Done" : "Edit";
+  b.className = "editbtn"+(on?" on":"");
+  document.getElementById("dayExtras").style.display = on ? "none" : "block";
+  document.getElementById("prevDay").style.display = on ? "none" : "";
+  document.getElementById("nextDay").style.display = on ? "none" : "";
+  renderDayBody();
+  if(!on) renderDaySum();
+}
+document.getElementById("editHabits").onclick=()=>setEditing(!editing);
+
+// re-render everything that depends on the habit list
+function refreshAll(){
+  renderStreak(); renderCats(); renderHeat(); renderInsights();
+  renderBanners(); renderHorizons(); renderDaySum(); renderLog();
+}
+
 function renderDaySum(){
   const el=document.getElementById("daySum");
-  // multi-colored swatch: one stripe per category, in category order
   const lv=(days[cur]&&days[cur].lv)||{};
-  const swatch="<span class='daysw'>"+CATS.map(c=>"<i class='"+(lv[c.id]||"unset")+"'></i>").join("")+"</span>";
+  const act=active();
+  const stripes = act.length ? act : cats;
+  const swatch="<span class='daysw'>"+stripes.map(c=>"<i class='"+(isLevel(lv[c.id])?lv[c.id]:"unset")+"'></i>").join("")+"</span>";
   const t=dayTier(cur);
-  if(!t){ el.innerHTML=swatch+"Nothing set yet — pick a level for each category."; return; }
-  const f=fullCount(cur), on=CATS.filter(c=>hit(cur,c.id)).length;
-  el.innerHTML = swatch+"Day reads as <b>"+LVNAME[t]+"</b> — "+f+" full · "+(on-f)+" floor · "+(CATS.length-on)+" none. <span style='opacity:.7'>(3+ full = a Full day)</span>";
+  const need=fullsNeeded(Math.max(1,act.length));
+  if(!t){ el.innerHTML=swatch+"Nothing set yet — pick a level for each habit."; return; }
+  const f=fullCount(cur), on=dayLevels(cur).filter(v=>v!=="none").length, tot=rosterSize(cur);
+  el.innerHTML = swatch+"Day reads as <b>"+LVNAME[t]+"</b> — "+f+" full · "+(on-f)+" floor · "+
+    Math.max(0,tot-on)+" none. <span style='opacity:.7'>("+need+"+ full = a Full day)</span>";
 }
 
 const jEl=document.getElementById("journal");
@@ -476,7 +660,7 @@ function setDay(k){
   const showShip = d.getDay()===0 || d0.ship;
   shipWrap.style.display = showShip?"block":"none";
   shipEl.value=d0.ship||"";
-  renderLevels(); renderDaySum(); renderTomorrow();
+  renderDayBody(); renderDaySum(); renderTomorrow();
 }
 document.getElementById("prevDay").onclick=()=>setDay(fmt(addDays(parse(cur),-1)));
 document.getElementById("nextDay").onclick=()=>{ if(cur<TK) setDay(fmt(addDays(parse(cur),1))); };
@@ -486,6 +670,7 @@ const tabTrack=document.getElementById("tabTrack"), tabLog=document.getElementBy
 const viewTrack=document.getElementById("viewTrack"), viewLog=document.getElementById("viewLog");
 function setView(v){
   const isLog = v==="log";
+  if(isLog && editing) setEditing(false);
   viewTrack.style.display = isLog?"none":"block";
   viewLog.style.display   = isLog?"block":"none";
   tabTrack.className = "tab"+(isLog?"":" sel");
@@ -499,6 +684,12 @@ tabLog.onclick=()=>setView("log");
 // ---------- log page ----------
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 let openRows = {};   // which log rows are expanded
+// every habit id that appears on a day, in habit-list order, unknown ids last
+function idsFor(d){
+  const seen=Object.keys(d.lv||{}).filter(id=>isLevel(d.lv[id]));
+  const ordered=cats.map(c=>c.id).filter(id=>seen.includes(id));
+  return ordered.concat(seen.filter(id=>!ordered.includes(id)));
+}
 function hasContent(k){
   const d=days[k]; if(!d) return false;
   if(dayTier(k)) return true;
@@ -516,7 +707,7 @@ function renderLog(){
   }
   let lastMonth="";
   keys.forEach(k=>{
-    const d=days[k], dt=parse(k), t=dayTier(k);
+    const d=days[k], dt=parse(k), t=dayTier(k), ids=idsFor(d);
     const mo=dt.toLocaleDateString(undefined,{month:"long",year:"numeric"});
     if(mo!==lastMonth){
       const h=document.createElement("div"); h.className="logmonth"; h.textContent=mo;
@@ -527,10 +718,10 @@ function renderLog(){
 
     // ---- compressed head ----
     const head=document.createElement("div"); head.className="loghead";
-    const done=CATS.filter(c=>hit(k,c.id));
+    const done=ids.filter(id=>d.lv[id]!=="none");
     const bits=[];
     if(t) bits.push(LVNAME[t]);
-    bits.push(done.length ? done.map(c=>c.name).join(", ") : "no categories");
+    bits.push(done.length ? done.map(catName).join(", ") : "no habits");
     const j=(d.journal||"").trim();
     if(j) bits.push("“"+j.slice(0,60)+(j.length>60?"…":"")+"”");
     head.innerHTML =
@@ -545,12 +736,12 @@ function renderLog(){
     if(openRows[k]){
       const body=document.createElement("div"); body.className="logbody";
       let h="";
-      CATS.forEach(c=>{
-        const lv=(d.lv&&d.lv[c.id])||null;
-        if(!lv) return;
-        const txt=(d.det&&d.det[c.id]||"").trim();
-        h+="<div class='lb'><span class='lbt'>"+esc(c.name)+"</span>"+
-           "<span class='lvtag "+lv+"'>"+LVNAME[lv]+"</span>"+
+      ids.forEach(id=>{
+        const lv=d.lv[id];
+        const txt=((d.det&&d.det[id])||"").trim();
+        const arc=(catById(id)||{}).archived ? "<span class='archtag'>archived</span>" : "";
+        h+="<div class='lb'><span class='lbt'>"+esc(catName(id))+"</span>"+
+           "<span class='lvtag "+lv+"'>"+LVNAME[lv]+"</span>"+arc+
            (txt?"<div>"+esc(txt)+"</div>":(lv==="none"?"":"<div class='muted'>no detail written</div>"))+
            "</div>";
       });
@@ -589,7 +780,7 @@ function renderStreak(){
   document.getElementById("streak").innerHTML =
     s>0 ? "<b>"+s+"</b> non-zero day"+(s===1?"":"s") : "start today";
 }
-// per-category streak: consecutive days ending today (today not yet set doesn't break it)
+// per-habit streak: consecutive days ending today (today not yet set doesn't break it)
 function catStreak(cat){
   let n=0, c=new Date(today);
   if(!hit(TK,cat)) c=addDays(c,-1);
@@ -598,13 +789,15 @@ function catStreak(cat){
 }
 function renderCats(){
   const el=document.getElementById("catStreaks"); el.innerHTML="";
-  CATS.forEach(c=>{
+  const act=active();
+  if(!act.length){ el.innerHTML="<div class='locked' style='grid-column:1/-1'>No habits yet.</div>"; return; }
+  act.forEach(c=>{
     const lv = (days[TK] && days[TK].lv && days[TK].lv[c.id]) || null;
     const done = lv && lv!=="none";
     const s=catStreak(c.id);
     const div=document.createElement("div");
     div.className="cat"+(done?" done":"");
-    div.innerHTML=`<div class="cs">${s}<small> d</small></div><div class="cn">${c.name}</div><div class="cm">${done?"✓ "+LVNAME[lv].toLowerCase()+" today":"not done"}</div>`;
+    div.innerHTML=`<div class="cs">${s}<small> d</small></div><div class="cn">${esc(c.name)}</div><div class="cm">${done?"✓ "+LVNAME[lv].toLowerCase()+" today":"not done"}</div>`;
     el.appendChild(div);
   });
 }
@@ -696,6 +889,8 @@ function renderInsights(){
 
   if(n<3){ el.innerHTML="<div class='locked'>Log 3 days to unlock your first pattern. 7 days unlocks weekday analysis. 21 days unlocks trend detection. The app can only get as smart as your logging is honest.</div>"; return; }
 
+  const act=active();
+
   // level 1: distribution (3+ days)
   const last30=keys.filter(k=>dayDiff(k,TK)<30);
   const count=t=>last30.filter(k=>dayTier(k)===t).length;
@@ -703,24 +898,28 @@ function renderInsights(){
   add("Consistency — last 30 days",
     `<b>${nz}/${last30.length}</b> non-zero (${count("full")} full · ${count("floor")} floor · ${count("none")} none).`);
 
-  // weakest category (last 14 logged days)
+  // weakest habit (last 14 logged days)
   const last14=keys.filter(k=>dayDiff(k,TK)<14);
-  if(last14.length>=5){
+  if(last14.length>=5 && act.length){
     let weak=null, weakRate=1.01;
-    CATS.forEach(c=>{
+    act.forEach(c=>{
       const r=last14.filter(k=>hit(k,c.id)).length/last14.length;
       if(r<weakRate){ weakRate=r; weak=c; }
     });
     if(weak && weakRate<0.5)
-      add("Weakest category", weak.name+" is landing only "+Math.round(weakRate*100)+"% of days — attach it to a habit that already sticks, or shrink it at Sunday review.");
+      add("Weakest habit", esc(weak.name)+" is landing only "+Math.round(weakRate*100)+"% of days — attach it to a habit that already sticks, or shrink it at Sunday review.");
   }
 
-  // deep-work vs training balance
-  const dw=last30.filter(k=>hit(k,"deep")).length, tr=last30.filter(k=>hit(k,"train")).length;
-  if(tr>=3 && tr-dw>=4)
-    add("Balance","Training is outpacing deep work ("+tr+" vs "+dw+" days). Body is the old comfort zone — the bet was building the same depth in the intellectual work.");
-  else if(dw-tr>=4)
-    add("Balance","Deep work is outpacing training ("+dw+" vs "+tr+" days). Don't let the floor break on the body side — that self-trust is load-bearing.");
+  // body vs mind balance — only while both original habits are still live
+  const liveTrain = catById("train") && !catById("train").archived;
+  const liveDeep  = catById("deep")  && !catById("deep").archived;
+  if(liveTrain && liveDeep){
+    const dw=last30.filter(k=>hit(k,"deep")).length, tr=last30.filter(k=>hit(k,"train")).length;
+    if(tr>=3 && tr-dw>=4)
+      add("Balance","Training is outpacing deep work ("+tr+" vs "+dw+" days). Body is the old comfort zone — the bet was building the same depth in the intellectual work.");
+    else if(dw-tr>=4)
+      add("Balance","Deep work is outpacing training ("+dw+" vs "+tr+" days). Don't let the floor break on the body side — that self-trust is load-bearing.");
+  }
 
   // level 2: weekday analysis (7+ days)
   if(n>=7){
@@ -745,14 +944,15 @@ function renderInsights(){
     const low=last14.filter(k=>["floor","none"].includes(dayTier(k))).length;
     if(low>=10 && !crunchOn())
       add("Design check","10+ of the last 14 days were floor-or-none outside crunch mode. Per the playbook: that's a design problem, not a discipline problem — shrink the system at Sunday review instead of abandoning it.");
-    const score=k=>CATS.reduce((s,c)=>s+(SCORE[(days[k].lv||{})[c.id]]||0),0);
+    // average level per habit, so the number stays comparable if the roster changes
+    const score=k=>{ const v=dayLevels(k); return v.length ? v.reduce((s,x)=>s+SCORE[x],0)/rosterSize(k) : 0; };
     const prev14=keys.filter(k=>{const d=dayDiff(k,TK); return d>=14&&d<28;});
     if(prev14.length>=7){
       const a=last14.reduce((s,k)=>s+score(k),0)/Math.max(1,last14.length);
       const b=prev14.reduce((s,k)=>s+score(k),0)/prev14.length;
       const diff=a-b;
-      add("Momentum", diff>0.6?"Trending up — average level is rising versus the prior two weeks.":
-        diff<-0.6?"Trending down versus the prior two weeks. Downshift deliberately (declare crunch or plan floor days) before the system downshifts for you.":
+      add("Momentum", diff>0.12?"Trending up — average level is rising versus the prior two weeks.":
+        diff<-0.12?"Trending down versus the prior two weeks. Downshift deliberately (declare crunch or plan floor days) before the system downshifts for you.":
         "Steady — average level is flat versus the prior two weeks. Boring is the feature.");
     }
     const jr=last30.filter(k=>days[k].journal && days[k].journal.trim().length>10).length;
@@ -810,7 +1010,7 @@ cBtn.onclick=()=>{
 
 // ---------- export / import ----------
 function exportData(){
-  const blob=new Blob([JSON.stringify({days,settings,park,exported:TK},null,1)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify({days,settings,park,cats,exported:TK},null,1)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="floor-backup-"+TK+".json"; a.click();
 }
@@ -820,12 +1020,14 @@ function importData(inp){
   r.onload=()=>{ try{
     const d=JSON.parse(r.result);
     if(d.days){ days=d.days; settings=d.settings||settings; park=d.park||[];
+      if(Array.isArray(d.cats) && d.cats.length) save(K.cats, d.cats);
       save(K.days,days); save(K.settings,settings); save(K.park,park); location.reload(); }
   }catch(e){ alert("Couldn't read that backup file."); } };
   r.readAsText(f);
 }
 
 // ---------- init ----------
+saveCats();
 setDay(TK);
 renderStreak(); renderCats(); renderBanners(); renderHorizons();
 renderHeat(); renderInsights(); renderPark(); renderCrunch(); renderLog();
