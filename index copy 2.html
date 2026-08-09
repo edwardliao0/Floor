@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Floor — the system tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Floor">
+<meta name="theme-color" content="#fafaf7">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  :root{
+    --bg:#fafaf7; --card:#ffffff; --ink:#111111; --sub:#111111; --line:#e8e8e2;
+    /* the level scale — identical for every habit: black / grey / white */
+    --full:#111111; --floorc:#9a9a9a; --nonec:#ffffff; --noneb:#b4b4ae;
+    --fullink:#ffffff; --floorink:#ffffff; --noneink:#111111;
+    --alert:#c0392b; --good:#1a7f4e;
+    --r:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#121210; --card:#1c1c19; --ink:#ecece6; --sub:#ecece6; --line:#2c2c27;
+      /* inverted so the same scale stays legible on a dark background */
+      --full:#f2f2ec; --floorc:#7c7c74; --nonec:#141412; --noneb:#4a4a43;
+      --fullink:#111111; --floorink:#ffffff; --noneink:#ecece6;
+      --alert:#e06050; --good:#4dbb85; }
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:620px; margin:0 auto; padding:36px 20px 80px}
+  header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:26px}
+  h1{font-size:17px; font-weight:650; letter-spacing:-.01em}
+  h1 span{color:var(--sub); font-weight:400}
+  .streak{font-size:13px; color:var(--sub)}
+  .streak b{color:var(--ink); font-weight:650}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r);
+    padding:20px; margin-bottom:14px}
+  .label{font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--sub);
+    font-weight:600; margin-bottom:12px}
+  .banner{border-radius:var(--r); padding:12px 16px; font-size:13.5px; margin-bottom:14px;
+    border:1px solid var(--line); background:var(--card)}
+  .banner.alert{border-color:color-mix(in srgb, var(--alert) 40%, transparent); color:var(--alert)}
+  .banner.calm{color:var(--sub)}
+  /* view tabs */
+  .tabs{display:flex; gap:6px; margin-bottom:18px}
+  .tab{flex:1; border:1px solid var(--line); background:transparent; color:var(--sub);
+    border-radius:10px; padding:9px 4px; font-size:13px; font-weight:550; cursor:pointer;
+    font-family:inherit; transition:all .12s}
+  .tab.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+  /* day navigation */
+  .labelrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px}
+  .labelrow .label{margin-bottom:0}
+  .nav{display:flex; gap:6px; align-items:center; flex-shrink:0}
+  .nav button{border:1px solid var(--line); background:transparent; color:var(--ink);
+    border-radius:8px; width:30px; height:30px; font-size:16px; cursor:pointer; font-family:inherit}
+  .nav button:disabled{opacity:.25; cursor:default}
+  .editbtn{width:auto !important; padding:0 11px; font-size:12px !important; color:var(--sub) !important;
+    font-weight:550}
+  .editbtn.on{background:var(--ink) !important; color:var(--bg) !important; border-color:var(--ink) !important}
+  .backfill{font-size:11px; color:var(--alert); margin-left:8px; font-weight:600; text-transform:none; letter-spacing:0}
+  /* per-habit level rows */
+  .lvrow{padding:12px 0; border-bottom:1px solid var(--line)}
+  .lvrow:first-child{padding-top:0}
+  .lvrow:last-child{border-bottom:none; padding-bottom:0}
+  .lvhead{display:flex; align-items:center; gap:10px}
+  .lvname{flex:1; font-size:13.5px; font-weight:550}
+  .lvsel{display:flex; gap:6px; flex-shrink:0}
+  .lvbtn{border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit;
+    transition:all .12s; font-weight:550; min-width:52px}
+  .lvbtn.sel.full{background:var(--full); color:var(--fullink); border-color:var(--full)}
+  .lvbtn.sel.floor{background:var(--floorc); color:var(--floorink); border-color:var(--floorc)}
+  .lvbtn.sel.none{background:var(--nonec); color:var(--noneink); border-color:var(--noneb)}
+  .lvdet{margin-top:8px}
+  .lvdet input{width:100%; padding:7px 10px; font-size:13px; border:1px solid var(--line); border-radius:8px}
+  .daysum{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
+    font-size:12.5px; color:var(--sub); display:flex; align-items:center; gap:8px}
+  /* multi-colored day swatch — one stripe per starter, in lineup order */
+  .daysw{display:flex; min-width:34px; height:13px; border-radius:4px; overflow:hidden;
+    flex-shrink:0; border:1px solid var(--line)}
+  .daysw i{flex:1; display:block; min-width:5px}
+  .daysw i.full{background:var(--full)}
+  .daysw i.floor{background:var(--floorc)}
+  .daysw i.none{background:var(--nonec)}
+  .daysw i.unset{background:var(--line); opacity:.6}
+  .daysum b{color:var(--ink); font-weight:650}
+  /* lineup editor */
+  .edtop{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+  .edtop .edsec{margin:0; flex:1}
+  .capctl{display:flex; align-items:center; gap:4px; flex-shrink:0}
+  .capctl button{border:1px solid var(--line); background:transparent; color:var(--ink);
+    border-radius:7px; width:26px; height:26px; font-size:14px; cursor:pointer;
+    font-family:inherit; line-height:1; padding:0}
+  .capctl button:disabled{opacity:.22; cursor:default}
+  .capctl span{font-size:12.5px; font-weight:650; min-width:52px; text-align:center; color:var(--sub)}
+  .edrow{display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid var(--line)}
+  .edrow input{flex:1; min-width:0; padding:7px 10px; font-size:13px;
+    border:1px solid var(--line); border-radius:8px}
+  .ednum{font-size:11px; font-weight:700; color:var(--sub); opacity:.5; width:13px;
+    flex-shrink:0; text-align:center}
+  .edbtn{border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:7px;
+    width:30px; height:30px; font-size:13px; cursor:pointer; flex-shrink:0; font-family:inherit;
+    line-height:1; padding:0}
+  .edbtn:disabled{opacity:.22; cursor:default}
+  .edbtn.wide{width:auto; padding:0 10px; font-size:11.5px; font-weight:600}
+  .edsec{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--sub);
+    font-weight:600; margin:18px 0 2px}
+  .edadd{display:flex; gap:6px; margin-top:12px}
+  .edadd input{flex:1; min-width:0; padding:8px 10px; font-size:13px;
+    border:1px solid var(--line); border-radius:8px}
+  .edadd button{border:1px solid var(--ink); background:var(--ink); color:var(--bg);
+    border-radius:8px; padding:0 14px; height:34px; font-size:13px; font-weight:550;
+    cursor:pointer; font-family:inherit; flex-shrink:0}
+  .edbench{display:flex; align-items:center; gap:8px; padding:8px 0; font-size:13px;
+    color:var(--sub); border-bottom:1px solid var(--line)}
+  .edbench .bn{flex:1; min-width:0}
+  .edbench .bs{font-size:11px; opacity:.7; white-space:nowrap; flex-shrink:0}
+  .edbench button{border:1px solid var(--line); background:transparent; color:var(--ink);
+    border-radius:7px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer;
+    font-family:inherit; flex-shrink:0}
+  .subpick{padding:2px 0 12px; border-bottom:1px solid var(--line)}
+  .subpick .sp{font-size:11.5px; color:var(--sub); margin-bottom:7px}
+  .subpick .spb{display:flex; flex-wrap:wrap; gap:6px}
+  .subpick button{border:1px solid var(--line); background:transparent; color:var(--ink);
+    border-radius:999px; padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit}
+  .subpick button.cancel{color:var(--sub); border-style:dashed}
+  .subrow{display:flex; gap:9px; padding:7px 0; font-size:12.5px; border-bottom:1px solid var(--line)}
+  .subrow:last-child{border-bottom:none}
+  .subrow .sd{color:var(--sub); opacity:.75; white-space:nowrap; flex-shrink:0; font-size:11.5px;
+    width:52px; padding-top:1px}
+  .subrow .st{flex:1}
+  .subin{color:var(--ink); font-weight:600}
+  .subout{color:var(--sub); opacity:.8}
+  .ednote{font-size:11.5px; color:var(--alert); margin-top:8px; font-weight:550}
+  .edhint{font-size:11.5px; color:var(--sub); margin-top:14px; line-height:1.55; opacity:.85}
+  .benchtag{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--sub);
+    opacity:.65; margin-left:6px; font-weight:600}
+  /* generic inputs */
+  input[type=text], textarea, input[type=date], select{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-size:14px; font-family:inherit; background:transparent; color:var(--ink);
+    outline:none; resize:none}
+  input:focus, textarea:focus{border-color:var(--sub)}
+  .field{margin-top:14px}
+  .field .hint{font-size:11.5px; color:var(--sub); margin-bottom:6px}
+  /* tomorrow */
+  .tomorrow{display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:14px;
+    border-top:1px solid var(--line)}
+  .tomorrow .hint{font-size:12px; color:var(--sub); flex:1}
+  .pills{display:flex; gap:6px}
+  .pill{border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit}
+  .pill.sel{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+  /* per-habit streaks */
+  .cats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .cat{border:1px solid var(--line); border-radius:10px; padding:10px 6px; text-align:center}
+  .cat .cs{font-size:19px; font-weight:650; letter-spacing:-.02em}
+  .cat .cs small{font-size:11px; font-weight:400}
+  .cat .cn{font-size:11px; margin-top:1px}
+  .cat .cm{font-size:10.5px; margin-top:3px; color:var(--alert); font-weight:600}
+  .cat.done{border-color:var(--good)}
+  .cat.done .cm{color:var(--good)}
+  /* horizons */
+  .hz{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px}
+  .hz div{text-align:center; padding:6px 2px}
+  .hz .num{font-size:22px; font-weight:650; letter-spacing:-.02em}
+  .hz .cap{font-size:11px; color:var(--sub); margin-top:2px}
+  .bar{height:3px; background:var(--line); border-radius:2px; margin-top:8px; overflow:hidden}
+  .bar i{display:block; height:100%; background:var(--ink); border-radius:2px}
+  /* heatmap */
+  .heat{display:grid; grid-template-columns:repeat(7,1fr); gap:5px}
+  .cell{aspect-ratio:1; border-radius:5px; background:var(--line); opacity:.45}
+  .cell.full{background:var(--full); opacity:1}
+  .cell.floor{background:var(--floorc); opacity:1}
+  .cell.none{background:var(--nonec); border:1px solid var(--noneb); opacity:1}
+  .cell.today{outline:2px solid var(--sub); outline-offset:1.5px}
+  .heatdow{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:6px}
+  .heatdow span{text-align:center; font-size:9.5px; color:var(--sub); opacity:.75; letter-spacing:.04em}
+  .legend{display:flex; gap:14px; margin-top:12px; font-size:11px; color:var(--sub)}
+  .legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; vertical-align:-1px}
+  /* insights */
+  .insight{padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px}
+  .insight:last-child{border-bottom:none; padding-bottom:0}
+  .insight .tag{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--sub); display:block; margin-bottom:2px}
+  .locked{color:var(--sub); font-size:13px}
+  /* parking lot */
+  .park-item{display:flex; justify-content:space-between; gap:10px; padding:9px 0;
+    border-bottom:1px solid var(--line); font-size:13.5px}
+  .park-item:last-child{border-bottom:none}
+  .park-item .d{color:var(--sub); font-size:12px; white-space:nowrap}
+  .park-item .hear{color:var(--good); font-size:11px}
+  .park-item button{background:none; border:none; color:var(--sub); cursor:pointer; font-size:14px}
+  /* log page */
+  .logrow{border-bottom:1px solid var(--line)}
+  .logrow:last-child{border-bottom:none}
+  .loghead{display:flex; align-items:center; gap:10px; padding:11px 0; cursor:pointer}
+  .logdot{width:11px; height:11px; border-radius:4px; flex-shrink:0; background:var(--line)}
+  .logdot.full{background:var(--full)}
+  .logdot.floor{background:var(--floorc)}
+  .logdot.none{background:var(--nonec); border:1px solid var(--noneb)}
+  .logdate{font-size:13px; font-weight:600; width:92px; flex-shrink:0}
+  .logsum{flex:1; font-size:12.5px; color:var(--sub); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap}
+  .logchev{color:var(--sub); font-size:14px; flex-shrink:0; transition:transform .15s}
+  .logrow.open .logchev{transform:rotate(90deg)}
+  .logbody{padding:2px 0 14px 21px; font-size:13px}
+  .logbody .lb{margin-bottom:8px}
+  .logbody .lb:last-child{margin-bottom:0}
+  .logbody .lbt{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--sub); font-weight:600}
+  .logbody .lvtag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:1px}
+  .logbody .lvtag.full{background:var(--full); color:var(--fullink)}
+  .logbody .lvtag.floor{background:var(--floorc); color:var(--floorink)}
+  .logbody .lvtag.none{background:var(--nonec); color:var(--noneink); border:1px solid var(--noneb)}
+  .logbody .muted{color:var(--sub); opacity:.7}
+  .logedit{background:none; border:none; color:var(--sub); font-size:12px; cursor:pointer;
+    font-family:inherit; text-decoration:underline; padding:0; margin-top:4px}
+  .logmonth{font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--sub);
+    font-weight:600; margin:16px 0 2px; padding-top:10px; border-top:1px solid var(--line)}
+  .logmonth:first-child{margin-top:0; padding-top:0; border-top:none}
+  /* footer */
+  .ft{display:flex; gap:10px; justify-content:center; margin-top:24px}
+  .btn{border:1px solid var(--line); background:transparent; color:var(--sub); border-radius:999px;
+    padding:7px 16px; font-size:12.5px; cursor:pointer; font-family:inherit}
+  .btn:hover{color:var(--ink); border-color:var(--sub)}
+  .note{text-align:center; font-size:11.5px; color:var(--sub); margin-top:16px}
+  .compass-line{font-size:13.5px; font-style:italic; color:var(--sub); text-align:center;
+    margin-bottom:26px; line-height:1.5}
+  .saved{position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--bg); font-size:12px; padding:6px 14px;
+    border-radius:999px; opacity:0; transition:opacity .25s; pointer-events:none}
+  .saved.show{opacity:1}
+  .crunch-row{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--sub)}
+  .crunch-row input[type=date]{width:auto; padding:5px 8px; font-size:12.5px}
+  .chk{border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:13px;
+    cursor:pointer; background:transparent; color:var(--sub); font-family:inherit; transition:all .12s}
+  .chk.on{background:var(--card); color:var(--ink); border-color:var(--ink)}
+  .chk.on::before{content:"✓ "; color:var(--good)}
+  /* iPhone polish */
+  @media (max-width:480px){
+    .wrap{padding:20px 14px calc(70px + env(safe-area-inset-bottom))}
+    body{padding-top:env(safe-area-inset-top)}
+    input[type=text], textarea{font-size:16px}   /* prevents iOS focus-zoom */
+    .lvbtn{padding:8px 8px; min-width:0; flex:1}
+    .lvsel{flex:0 0 auto; width:168px}
+    .chk{padding:10px 16px}
+    .hz .num{font-size:19px}
+    .logdate{width:78px; font-size:12.5px}
+    .edrow input, .edadd input{font-size:16px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Floor <span>— the system</span></h1>
+    <div class="streak" id="streak"></div>
+  </header>
+
+  <div class="compass-line">Depth is the bet. The floor never breaks.<br>Pivots happen only at quarterly reviews, in writing.</div>
+
+  <div class="tabs">
+    <button class="tab sel" id="tabTrack">Tracker</button>
+    <button class="tab" id="tabLog">Log</button>
+  </div>
+
+  <!-- ============ TRACKER VIEW ============ -->
+  <div id="viewTrack">
+
+  <div id="banners"></div>
+
+  <!-- DAY (today or backfill) -->
+  <div class="card">
+    <div class="labelrow">
+      <div class="label"><span id="todayLabel">Today</span><span class="backfill" id="backfillTag"></span></div>
+      <div class="nav">
+        <button id="editHabits" class="editbtn" title="Set your starting lineup">Lineup</button>
+        <button id="prevDay" title="Previous day">‹</button>
+        <button id="nextDay" title="Next day">›</button>
+      </div>
+    </div>
+    <div id="catLevels"></div>
+    <div id="dayExtras">
+      <div class="daysum" id="daySum"></div>
+      <div class="field">
+        <div class="hint">Decision journal — one call you made today, and why</div>
+        <textarea id="journal" rows="2" placeholder="e.g. Passed on X because…"></textarea>
+      </div>
+      <div class="field" id="shipField" style="display:none">
+        <div class="hint">Sunday — what did you ship this week?</div>
+        <input type="text" id="ship" placeholder="Memo section, model tab, 500-word write-up…">
+      </div>
+      <div class="tomorrow">
+        <div class="hint">Tomorrow's tier — decide tonight, not tomorrow morning</div>
+        <div class="pills" id="tomorrowPills"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINEUP STREAKS -->
+  <div class="card">
+    <div class="label">Streaks — starting lineup</div>
+    <div class="cats" id="catStreaks"></div>
+  </div>
+
+  <!-- HORIZONS -->
+  <div class="card">
+    <div class="label">Horizons</div>
+    <div class="hz" id="horizons"></div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="card">
+    <div class="label" id="heatLabel">Every week — day one at the top</div>
+    <div class="heatdow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="heat" id="heat"></div>
+    <div class="legend">
+      <span><i style="background:var(--full)"></i>Full</span>
+      <span><i style="background:var(--floorc)"></i>Floor</span>
+      <span><i style="background:var(--nonec); border:1px solid var(--noneb)"></i>None</span>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="card">
+    <div class="label">What your data says</div>
+    <div id="insights"></div>
+  </div>
+
+  <!-- PARKING LOT -->
+  <div class="card">
+    <div class="label">Parking lot — shiny things wait for the quarterly</div>
+    <input type="text" id="parkInput" placeholder="New idea / pivot itch — write it, release it">
+    <div id="parkList" style="margin-top:6px"></div>
+  </div>
+
+  <!-- CRUNCH -->
+  <div class="card">
+    <div class="label">Crunch mode</div>
+    <div class="crunch-row">
+      <button class="chk" id="crunchBtn"></button>
+      <span id="crunchInfo"></span>
+      <input type="date" id="crunchEnd" style="display:none">
+    </div>
+  </div>
+
+  </div><!-- /viewTrack -->
+
+  <!-- ============ LOG VIEW ============ -->
+  <div id="viewLog" style="display:none">
+    <div class="card">
+      <div class="label">Log — every day you've written down</div>
+      <div id="logList"></div>
+    </div>
+  </div>
+
+  <div class="ft">
+    <button class="btn" onclick="exportData()">Export backup</button>
+    <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+  </div>
+  <div class="note">All data lives on this device. No account, no server, no subscription.<br>Export a backup monthly — it takes two seconds.</div>
+</div>
+
+<div class="saved" id="saved">Saved</div>
+
+<script>
+"use strict";
+// ---------- storage ----------
+const K = { days:"floor.days", settings:"floor.settings", park:"floor.park",
+            cats:"floor.cats", subs:"floor.subs" };
+const load = (k,d) => { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
+const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+
+let days = load(K.days, {});           // {"2026-07-09":{lv:{train:"full",…},det,journal,ship,next,n}}
+let settings = load(K.settings, {});   // {start, crunchEnd, cap}
+let park = load(K.park, []);           // [{date,text}]
+let subs = load(K.subs, []);           // [{d,inId,inName,outId,outName}] newest pushed last
+
+// ---------- habits: starting lineup + bench ----------
+const DEFAULT_CATS = [
+  {id:"train", name:"Trained",       ph:"e.g. Full Body A — front squat 5×5 @ 185"},
+  {id:"deep",  name:"Deep work",     ph:"e.g. 70 min — LMT 10-K, segment margins"},
+  {id:"cuff",  name:"Articulate",    ph:"e.g. 2-min voice memo — pitched HON, listened back"},
+  {id:"read",  name:"Read 10 pages", ph:"e.g. Xunzi ch.1, pp. 12–24"},
+  {id:"breath",name:"Breathwork",    ph:"e.g. 10 min box breathing"},
+];
+let cats = load(K.cats, null);
+if(!Array.isArray(cats) || !cats.length) cats = DEFAULT_CATS.map(c=>({...c}));
+cats = cats.filter(c => c && typeof c.id==="string" && typeof c.name==="string");
+if(!cats.length) cats = DEFAULT_CATS.map(c=>({...c}));
+// v7 called it "archived"; v8 calls it "benched" — same idea, better name
+cats.forEach(c=>{ if(c.archived){ c.benched=true; delete c.archived; } });
+
+const lineup   = () => cats.filter(c=>!c.benched);
+const benched  = () => cats.filter(c=>c.benched);
+const catById  = id => cats.find(c=>c.id===id);
+const catName  = id => { const c=catById(id); return c ? c.name : id; };
+const catPh    = id => { const c=catById(id); return (c&&c.ph) || "what specifically did you do?"; };
+function saveCats(){ save(K.cats, cats); }
+function saveSubs(){ save(K.subs, subs); }
+function newCatId(){ let id; do{ id="h"+Math.random().toString(36).slice(2,8); }while(catById(id)); return id; }
+
+const LEVELS = [
+  {id:"full",  name:"Full"},
+  {id:"floor", name:"Floor"},
+  {id:"none",  name:"None"},
+];
+const SCORE = {full:2, floor:1, none:0};
+const LVNAME = {full:"Full", floor:"Floor", none:"None"};
+const isLevel = v => v==="full" || v==="floor" || v==="none";
+
+// ---------- migration from the old single-tier model ----------
+const OLD2LV = {full:"full", maintenance:"floor", floor:"floor", zero:"none"};
+Object.values(days).forEach(d=>{
+  if(!d) return;
+  if(d.rep!==undefined){ if(d.cuff===undefined) d.cuff=d.rep; delete d.rep; }
+  if(d.pf) delete d.pf;
+  if(!d.lv){
+    const base = OLD2LV[d.tier] || null;
+    if(base || DEFAULT_CATS.some(c=>d[c.id])){
+      d.lv = {};
+      DEFAULT_CATS.forEach(c=>{
+        d.lv[c.id] = d[c.id] ? (base && base!=="none" ? base : "floor") : "none";
+      });
+      d.n = DEFAULT_CATS.length;
+    }
+  }
+  if(d.next==="maintenance") d.next="floor";
+});
+
+// ---------- dates ----------
+const fmt = d => { const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); };
+const today = new Date(); const TK = fmt(today);
+const parse = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const dayDiff = (a,b) => Math.round((parse(b)-parse(a))/864e5);
+const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const shortDate = k => parse(k).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+
+if(!settings.start){ settings.start = TK; save(K.settings, settings); }
+// lineup cap — you set it, and it's enforced
+if(!(settings.cap>0)) settings.cap = Math.max(5, lineup().length);
+if(lineup().length > settings.cap) settings.cap = lineup().length;   // never silently bench anyone
+const CAP_MIN=1, CAP_MAX=10;
+
+// ---------- derived day tier ----------
+function rosterSize(k){
+  const d=days[k];
+  if(d && d.n>0) return d.n;
+  if(d && d.lv){ const n=Object.keys(d.lv).filter(id=>isLevel(d.lv[id])).length; if(n) return n; }
+  return Math.max(1, lineup().length);
+}
+function fullsNeeded(n){ return Math.floor(n/2)+1; }   // majority: 3 of 5, 2 of 3, 6 of 10
+function dayLevels(k){
+  const d=days[k]; if(!d||!d.lv) return [];
+  return Object.keys(d.lv).filter(id=>isLevel(d.lv[id])).map(id=>d.lv[id]);
+}
+function dayTier(k){
+  const vals=dayLevels(k);
+  if(!vals.length) return null;
+  const fulls=vals.filter(v=>v==="full").length;
+  if(fulls >= fullsNeeded(rosterSize(k))) return "full";
+  if(vals.some(v=>v!=="none")) return "floor";
+  return "none";
+}
+function fullCount(k){ return dayLevels(k).filter(v=>v==="full").length; }
+function hit(k,cat){ const d=days[k]; return !!(d && d.lv && d.lv[cat] && d.lv[cat]!=="none"); }
+
+// yesterday's chosen "next" is a reminder, never an auto-log
+const yk = fmt(addDays(today,-1));
+const plannedTier = !dayTier(TK) && days[yk] && days[yk].next ? days[yk].next : null;
+
+let cur = TK;
+let d0 = days[TK] = days[TK] || {};
+let editing = false;
+let subPickFor = null;    // id of the benched habit awaiting "who comes out?"
+let edNote = "";          // transient message in the editor
+
+// ---------- persistence ----------
+let saveT;
+function flash(){
+  clearTimeout(saveT);
+  const s=document.getElementById("saved");
+  s.classList.add("show");
+  saveT=setTimeout(()=>s.classList.remove("show"), 900);
+}
+function persist(){
+  save(K.days, days);
+  flash();
+  renderStreak(); renderCats(); renderHeat(); renderInsights(); renderBanners();
+  renderHorizons(); renderDaySum(); renderLog();
+}
+function refreshAll(){
+  renderStreak(); renderCats(); renderHeat(); renderInsights();
+  renderBanners(); renderHorizons(); renderDaySum(); renderLog();
+}
+
+// ---------- bench windows (so a substitution never kills a streak) ----------
+// A habit on the bench is frozen: those days are skipped when counting, not counted as misses.
+function benchedOn(id, k){
+  const c=catById(id); if(!c) return false;
+  if(c.benched && c.since && k >= c.since) return true;
+  return (c.spells||[]).some(p => k >= p.from && k < p.to);
+}
+function benchHabit(id, quiet){
+  if(lineup().length<=1){ edNote="You need at least one starter."; return false; }
+  const c=catById(id); if(!c || c.benched) return false;
+  c.benched=true; c.since=TK;
+  if(!quiet){ subs.push({d:TK, outId:id, outName:c.name}); saveSubs(); }
+  saveCats();
+  return true;
+}
+function startHabit(id, quiet){
+  const c=catById(id); if(!c || !c.benched) return false;
+  if(c.since && c.since < TK) (c.spells = c.spells || []).push({from:c.since, to:TK});
+  delete c.benched; delete c.since;
+  if(!quiet){ subs.push({d:TK, inId:id, inName:c.name}); saveSubs(); }
+  saveCats();
+  return true;
+}
+function substitute(inId, outId){
+  const ci=catById(inId), co=catById(outId);
+  if(!ci || !co) return false;
+  benchHabit(outId, true); startHabit(inId, true);
+  subs.push({d:TK, inId, inName:ci.name, outId, outName:co.name});
+  saveSubs(); saveCats();
+  return true;
+}
+function addHabit(name){
+  name=(name||"").trim().slice(0,42);
+  if(!name) return false;
+  const c={id:newCatId(), name, ph:"what specifically did you do?"};
+  if(lineup().length >= settings.cap){
+    c.benched=true; c.since=TK;
+    edNote='Lineup is full ('+settings.cap+') — "'+name+'" went to the bench. Sub someone out to start it.';
+  }
+  cats.push(c); saveCats();
+  return true;
+}
+function setCap(n){
+  n=Math.min(CAP_MAX, Math.max(CAP_MIN, n));
+  if(n < lineup().length){
+    edNote="Bench "+(lineup().length-n)+" starter"+(lineup().length-n===1?"":"s")+" first, then shrink the lineup.";
+    return;
+  }
+  settings.cap=n; save(K.settings,settings); edNote="";
+}
+
+// ---------- day card ----------
+function renderDayBody(){ editing ? renderEditor() : renderLevels(); }
+
+function renderLevels(){
+  const el=document.getElementById("catLevels"); el.innerHTML="";
+  d0.lv = d0.lv || {}; d0.det = d0.det || {};
+  const act=lineup();
+  if(!act.length){
+    el.innerHTML="<div class='locked'>No starters yet. Tap <b>Lineup</b> above to pick your five.</div>";
+    return;
+  }
+  act.forEach(c=>{
+    const row=document.createElement("div"); row.className="lvrow";
+    const head=document.createElement("div"); head.className="lvhead";
+    const nm=document.createElement("span"); nm.className="lvname"; nm.textContent=c.name;
+    const sel=document.createElement("div"); sel.className="lvsel";
+    LEVELS.forEach(L=>{
+      const b=document.createElement("button");
+      b.className="lvbtn "+L.id+(d0.lv[c.id]===L.id?" sel":"");
+      b.textContent=L.name;
+      b.onclick=()=>{
+        d0.lv[c.id] = d0.lv[c.id]===L.id ? undefined : L.id;
+        if(d0.lv[c.id]===undefined) delete d0.lv[c.id];
+        d0.n = act.length;
+        renderLevels(); persist();
+      };
+      sel.appendChild(b);
+    });
+    head.appendChild(nm); head.appendChild(sel); row.appendChild(head);
+    if(d0.lv[c.id] && d0.lv[c.id]!=="none"){
+      const wrap=document.createElement("div"); wrap.className="lvdet";
+      const inp=document.createElement("input"); inp.type="text";
+      inp.placeholder=c.ph||catPh(c.id); inp.value=(d0.det&&d0.det[c.id])||"";
+      inp.oninput=()=>{ d0.det[c.id]=inp.value; clearTimeout(inp._t); inp._t=setTimeout(persist,600); };
+      wrap.appendChild(inp); row.appendChild(wrap);
+    }
+    el.appendChild(row);
+  });
+}
+
+// ---------- lineup editor ----------
+function moveCat(id, dir){
+  const act=lineup();
+  const i=act.findIndex(c=>c.id===id), j=i+dir;
+  if(i<0 || j<0 || j>=act.length) return;
+  const ai=cats.indexOf(act[i]), aj=cats.indexOf(act[j]);
+  const tmp=cats[ai]; cats[ai]=cats[aj]; cats[aj]=tmp;
+  saveCats(); flash(); renderEditor(); refreshAll();
+}
+function afterEdit(){ flash(); renderEditor(); refreshAll(); }
+
+function renderEditor(){
+  const el=document.getElementById("catLevels"); el.innerHTML="";
+  const act=lineup(), bch=benched();
+
+  // header + cap control
+  const top=document.createElement("div"); top.className="edtop";
+  const h=document.createElement("div"); h.className="edsec";
+  h.textContent="Starting lineup — "+act.length+" of "+settings.cap;
+  const cap=document.createElement("div"); cap.className="capctl";
+  const minus=document.createElement("button"); minus.textContent="–"; minus.title="Smaller lineup";
+  minus.disabled=(settings.cap<=CAP_MIN);
+  minus.onclick=()=>{ setCap(settings.cap-1); afterEdit(); };
+  const val=document.createElement("span"); val.textContent="size "+settings.cap;
+  const plus=document.createElement("button"); plus.textContent="+"; plus.title="Bigger lineup";
+  plus.disabled=(settings.cap>=CAP_MAX);
+  plus.onclick=()=>{ setCap(settings.cap+1); afterEdit(); };
+  cap.appendChild(minus); cap.appendChild(val); cap.appendChild(plus);
+  top.appendChild(h); top.appendChild(cap); el.appendChild(top);
+
+  // starters
+  act.forEach((c,i)=>{
+    const row=document.createElement("div"); row.className="edrow";
+    const num=document.createElement("span"); num.className="ednum"; num.textContent=(i+1);
+    const inp=document.createElement("input"); inp.type="text"; inp.value=c.name;
+    inp.maxLength=42; inp.setAttribute("aria-label","Habit name");
+    const commit=(fromBlur)=>{
+      const v=(inp.value||"").trim();
+      c.name = v || (fromBlur ? "Untitled habit" : inp.value);
+      if(fromBlur) inp.value=c.name;
+      saveCats(); refreshAll();
+    };
+    inp.oninput=()=>{ clearTimeout(inp._t); inp._t=setTimeout(()=>commit(false),400); };
+    inp.onblur =()=>{ clearTimeout(inp._t); commit(true); };
+
+    const up=document.createElement("button"); up.className="edbtn"; up.textContent="↑";
+    up.title="Move up"; up.disabled=(i===0); up.onclick=()=>moveCat(c.id,-1);
+    const dn=document.createElement("button"); dn.className="edbtn"; dn.textContent="↓";
+    dn.title="Move down"; dn.disabled=(i===act.length-1); dn.onclick=()=>moveCat(c.id,1);
+    const bn=document.createElement("button"); bn.className="edbtn wide"; bn.textContent="Bench";
+    bn.title=act.length<=1?"You need at least one starter":"Move to the bench — history and streak are kept";
+    bn.disabled=(act.length<=1);
+    bn.onclick=()=>{ edNote=""; if(benchHabit(c.id)) afterEdit(); else renderEditor(); };
+
+    row.appendChild(num); row.appendChild(inp); row.appendChild(up); row.appendChild(dn); row.appendChild(bn);
+    el.appendChild(row);
+  });
+
+  // add
+  const add=document.createElement("div"); add.className="edadd";
+  const ai=document.createElement("input"); ai.type="text"; ai.maxLength=42;
+  ai.placeholder = act.length<settings.cap ? "New habit — e.g. Cold shower" : "New habit (goes to the bench)";
+  const ab=document.createElement("button"); ab.textContent="Add";
+  const doAdd=()=>{ edNote=""; if(addHabit(ai.value)) afterEdit(); };
+  ab.onclick=doAdd;
+  ai.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); doAdd(); } };
+  add.appendChild(ai); add.appendChild(ab); el.appendChild(add);
+
+  if(edNote){
+    const n=document.createElement("div"); n.className="ednote"; n.textContent=edNote;
+    el.appendChild(n);
+  }
+
+  // bench
+  if(bch.length){
+    const bh=document.createElement("div"); bh.className="edsec";
+    bh.textContent="Bench — streaks frozen, history kept"; el.appendChild(bh);
+    bch.forEach(c=>{
+      const row=document.createElement("div"); row.className="edbench";
+      const nm=document.createElement("span"); nm.className="bn"; nm.textContent=c.name;
+      const st=document.createElement("span"); st.className="bs";
+      const s=catStreak(c.id);
+      st.textContent = (s>0? s+"d frozen":"no streak") + (c.since? " · since "+shortDate(c.since):"");
+      const b=document.createElement("button");
+      const full=(lineup().length>=settings.cap);
+      b.textContent = full ? "Sub in" : "Start";
+      b.onclick=()=>{
+        edNote="";
+        if(!full){ startHabit(c.id); afterEdit(); }
+        else { subPickFor = (subPickFor===c.id? null : c.id); renderEditor(); }
+      };
+      row.appendChild(nm); row.appendChild(st); row.appendChild(b);
+      el.appendChild(row);
+
+      if(subPickFor===c.id){
+        const pick=document.createElement("div"); pick.className="subpick";
+        const lab=document.createElement("div"); lab.className="sp";
+        lab.textContent="Who comes out for "+c.name+"?";
+        const box=document.createElement("div"); box.className="spb";
+        lineup().forEach(o=>{
+          const bb=document.createElement("button"); bb.textContent=o.name;
+          bb.onclick=()=>{ substitute(c.id, o.id); subPickFor=null; afterEdit(); };
+          box.appendChild(bb);
+        });
+        const cx=document.createElement("button"); cx.className="cancel"; cx.textContent="Cancel";
+        cx.onclick=()=>{ subPickFor=null; renderEditor(); };
+        box.appendChild(cx);
+        pick.appendChild(lab); pick.appendChild(box); el.appendChild(pick);
+      }
+    });
+  }
+
+  // substitution history
+  if(subs.length){
+    const sh=document.createElement("div"); sh.className="edsec";
+    sh.textContent="Lineup history"; el.appendChild(sh);
+    subs.slice().reverse().slice(0,25).forEach(s=>{
+      const row=document.createElement("div"); row.className="subrow";
+      const d=document.createElement("span"); d.className="sd"; d.textContent=shortDate(s.d);
+      const t=document.createElement("span"); t.className="st";
+      let html="";
+      if(s.inName)  html += "<span class='subin'>"+esc(s.inName)+"</span> in";
+      if(s.inName && s.outName) html += " · ";
+      if(s.outName) html += "<span class='subout'>"+esc(s.outName)+"</span> out";
+      t.innerHTML=html;
+      row.appendChild(d); row.appendChild(t); el.appendChild(row);
+    });
+  }
+
+  const hint=document.createElement("div"); hint.className="edhint";
+  hint.innerHTML="Your lineup is what you log daily — nothing else appears on the tracker. "+
+    "Benching is a substitution, not a failure: the streak freezes where it stands and picks back up "+
+    "if you start that habit again, and every past entry stays readable in the Log.<br><br>"+
+    "A <b>Full day</b> is a majority of your starters at Full — with "+Math.max(1,act.length)+
+    " that's <b>"+fullsNeeded(Math.max(1,act.length))+"</b>.";
+  el.appendChild(hint);
+}
+
+function setEditing(on){
+  editing=on; subPickFor=null; if(!on) edNote="";
+  const b=document.getElementById("editHabits");
+  b.textContent = on ? "Done" : "Lineup";
+  b.className = "editbtn"+(on?" on":"");
+  document.getElementById("dayExtras").style.display = on ? "none" : "block";
+  document.getElementById("prevDay").style.display = on ? "none" : "";
+  document.getElementById("nextDay").style.display = on ? "none" : "";
+  renderDayBody();
+  if(!on) renderDaySum();
+}
+document.getElementById("editHabits").onclick=()=>setEditing(!editing);
+
+function renderDaySum(){
+  const el=document.getElementById("daySum");
+  const lv=(days[cur]&&days[cur].lv)||{};
+  const act=lineup();
+  const stripes = act.length ? act : cats;
+  const swatch="<span class='daysw'>"+stripes.map(c=>"<i class='"+(isLevel(lv[c.id])?lv[c.id]:"unset")+"'></i>").join("")+"</span>";
+  const t=dayTier(cur);
+  const need=fullsNeeded(Math.max(1,act.length));
+  if(!t){ el.innerHTML=swatch+"Nothing set yet — pick a level for each starter."; return; }
+  const f=fullCount(cur), on=dayLevels(cur).filter(v=>v!=="none").length, tot=rosterSize(cur);
+  el.innerHTML = swatch+"Day reads as <b>"+LVNAME[t]+"</b> — "+f+" full · "+(on-f)+" floor · "+
+    Math.max(0,tot-on)+" none. <span style='opacity:.7'>("+need+"+ full = a Full day)</span>";
+}
+
+const jEl=document.getElementById("journal");
+jEl.oninput=()=>{ d0.journal=jEl.value; clearTimeout(jEl._t); jEl._t=setTimeout(persist,600); };
+const shipWrap=document.getElementById("shipField"), shipEl=document.getElementById("ship");
+shipEl.oninput=()=>{ d0.ship=shipEl.value; clearTimeout(shipEl._t); shipEl._t=setTimeout(persist,600); };
+
+function renderTomorrow(){
+  const el=document.getElementById("tomorrowPills"); el.innerHTML="";
+  ["full","floor"].forEach(t=>{
+    const b=document.createElement("button");
+    b.className="pill"+(d0.next===t?" sel":"");
+    b.textContent=LVNAME[t];
+    b.onclick=()=>{ d0.next = d0.next===t?null:t; renderTomorrow(); persist(); };
+    el.appendChild(b);
+  });
+}
+
+function setDay(k){
+  cur=k; d0=days[k]=days[k]||{};
+  const d=parse(k);
+  const name=WD[d.getDay()]+", "+d.toLocaleDateString(undefined,{month:"long",day:"numeric"});
+  document.getElementById("todayLabel").textContent = (k===TK?"Today — ":"")+name;
+  document.getElementById("backfillTag").textContent = k===TK?"":"backfill";
+  document.getElementById("nextDay").disabled = (k===TK);
+  jEl.value=d0.journal||"";
+  const showShip = d.getDay()===0 || d0.ship;
+  shipWrap.style.display = showShip?"block":"none";
+  shipEl.value=d0.ship||"";
+  renderDayBody(); renderDaySum(); renderTomorrow();
+}
+document.getElementById("prevDay").onclick=()=>setDay(fmt(addDays(parse(cur),-1)));
+document.getElementById("nextDay").onclick=()=>{ if(cur<TK) setDay(fmt(addDays(parse(cur),1))); };
+
+// ---------- view switching ----------
+const tabTrack=document.getElementById("tabTrack"), tabLog=document.getElementById("tabLog");
+const viewTrack=document.getElementById("viewTrack"), viewLog=document.getElementById("viewLog");
+function setView(v){
+  const isLog = v==="log";
+  if(isLog && editing) setEditing(false);
+  viewTrack.style.display = isLog?"none":"block";
+  viewLog.style.display   = isLog?"block":"none";
+  tabTrack.className = "tab"+(isLog?"":" sel");
+  tabLog.className   = "tab"+(isLog?" sel":"");
+  if(isLog) renderLog();
+  window.scrollTo(0,0);
+}
+tabTrack.onclick=()=>setView("track");
+tabLog.onclick=()=>setView("log");
+
+// ---------- log page ----------
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+let openRows = {};
+function idsFor(d){
+  const seen=Object.keys(d.lv||{}).filter(id=>isLevel(d.lv[id]));
+  const ordered=cats.map(c=>c.id).filter(id=>seen.includes(id));
+  return ordered.concat(seen.filter(id=>!ordered.includes(id)));
+}
+function hasContent(k){
+  const d=days[k]; if(!d) return false;
+  if(dayTier(k)) return true;
+  if(d.journal && d.journal.trim()) return true;
+  if(d.ship && d.ship.trim()) return true;
+  if(d.det && Object.values(d.det).some(v=>v && v.trim())) return true;
+  return false;
+}
+function renderLog(){
+  const el=document.getElementById("logList"); el.innerHTML="";
+  const keys=Object.keys(days).filter(k=>k<=TK && hasContent(k)).sort().reverse();
+  if(!keys.length){
+    el.innerHTML="<div class='locked'>Nothing logged yet. Set levels on the tracker and the day shows up here — compressed. Tap any row to read what you wrote.</div>";
+    return;
+  }
+  let lastMonth="";
+  keys.forEach(k=>{
+    const d=days[k], dt=parse(k), t=dayTier(k), ids=idsFor(d);
+    const mo=dt.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+    if(mo!==lastMonth){
+      const h=document.createElement("div"); h.className="logmonth"; h.textContent=mo;
+      el.appendChild(h); lastMonth=mo;
+    }
+    const row=document.createElement("div");
+    row.className="logrow"+(openRows[k]?" open":"");
+
+    const head=document.createElement("div"); head.className="loghead";
+    const done=ids.filter(id=>d.lv[id]!=="none");
+    const bits=[];
+    if(t) bits.push(LVNAME[t]);
+    bits.push(done.length ? done.map(catName).join(", ") : "no habits");
+    const j=(d.journal||"").trim();
+    if(j) bits.push("“"+j.slice(0,60)+(j.length>60?"…":"")+"”");
+    head.innerHTML =
+      "<span class='logdot "+(t||"")+"'></span>"+
+      "<span class='logdate'>"+esc(WD[dt.getDay()].slice(0,3)+", "+shortDate(k))+"</span>"+
+      "<span class='logsum'>"+esc(bits.join(" · "))+"</span>"+
+      "<span class='logchev'>›</span>";
+    head.onclick=()=>{ openRows[k]=!openRows[k]; renderLog(); };
+    row.appendChild(head);
+
+    if(openRows[k]){
+      const body=document.createElement("div"); body.className="logbody";
+      let h="";
+      ids.forEach(id=>{
+        const lv=d.lv[id];
+        const txt=((d.det&&d.det[id])||"").trim();
+        const bt=(catById(id)||{}).benched ? "<span class='benchtag'>benched</span>" : "";
+        h+="<div class='lb'><span class='lbt'>"+esc(catName(id))+"</span>"+
+           "<span class='lvtag "+lv+"'>"+LVNAME[lv]+"</span>"+bt+
+           (txt?"<div>"+esc(txt)+"</div>":(lv==="none"?"":"<div class='muted'>no detail written</div>"))+
+           "</div>";
+      });
+      if(d.journal && d.journal.trim())
+        h+="<div class='lb'><span class='lbt'>Decision journal</span><div>"+esc(d.journal.trim())+"</div></div>";
+      if(d.ship && d.ship.trim())
+        h+="<div class='lb'><span class='lbt'>Shipped</span><div>"+esc(d.ship.trim())+"</div></div>";
+      if(d.next)
+        h+="<div class='lb'><span class='lbt'>Planned for next day</span><div>"+LVNAME[d.next]+"</div></div>";
+      body.innerHTML=h || "<div class='muted'>Nothing written for this day.</div>";
+      const ed=document.createElement("button"); ed.className="logedit"; ed.textContent="Open this day in the tracker";
+      ed.onclick=()=>{ setDay(k); setView("track"); };
+      body.appendChild(ed);
+      row.appendChild(body);
+    }
+    el.appendChild(row);
+  });
+}
+
+// ---------- streaks ----------
+function nonZero(k){ const t=dayTier(k); return !!t && t!=="none"; }
+function streakCount(){
+  let n=0, c=new Date(today);
+  if(!nonZero(TK)) c=addDays(c,-1);
+  while(nonZero(fmt(c))){ n++; c=addDays(c,-1); }
+  return n;
+}
+function bestStreak(){
+  const keys=Object.keys(days).filter(nonZero).sort();
+  let best=0,run=0,prev=null;
+  keys.forEach(k=>{ run=(prev && dayDiff(prev,k)===1)?run+1:1; best=Math.max(best,run); prev=k; });
+  return best;
+}
+function renderStreak(){
+  const s=streakCount();
+  document.getElementById("streak").innerHTML =
+    s>0 ? "<b>"+s+"</b> non-zero day"+(s===1?"":"s") : "start today";
+}
+// per-habit streak — benched days are skipped, so a substitution freezes rather than breaks it
+function catStreak(id){
+  let n=0, c=new Date(today), guard=0;
+  const floorDate = settings.start;
+  if(!hit(TK,id) && !benchedOn(id,TK)) c=addDays(c,-1);
+  while(guard++ < 4000){
+    const k=fmt(c);
+    if(k < floorDate) break;
+    if(benchedOn(id,k)){ c=addDays(c,-1); continue; }   // frozen
+    if(hit(k,id)){ n++; c=addDays(c,-1); continue; }
+    break;
+  }
+  return n;
+}
+function renderCats(){
+  const el=document.getElementById("catStreaks"); el.innerHTML="";
+  const act=lineup();
+  if(!act.length){ el.innerHTML="<div class='locked' style='grid-column:1/-1'>No starters yet.</div>"; return; }
+  act.forEach(c=>{
+    const lv = (days[TK] && days[TK].lv && days[TK].lv[c.id]) || null;
+    const done = lv && lv!=="none";
+    const s=catStreak(c.id);
+    const div=document.createElement("div");
+    div.className="cat"+(done?" done":"");
+    div.innerHTML=`<div class="cs">${s}<small> d</small></div><div class="cn">${esc(c.name)}</div><div class="cm">${done?"✓ "+LVNAME[lv].toLowerCase()+" today":"not done"}</div>`;
+    el.appendChild(div);
+  });
+}
+
+// ---------- banners ----------
+function crunchOn(){ return settings.crunchEnd && settings.crunchEnd >= TK; }
+function renderBanners(){
+  const el=document.getElementById("banners"); el.innerHTML="";
+  const add=(cls,txt)=>{ const b=document.createElement("div"); b.className="banner "+cls; b.textContent=txt; el.appendChild(b); };
+  const t=dayTier(TK), y=dayTier(yk);
+  if(y==="none" && (!t || t==="none"))
+    add("alert","Yesterday was a none. Today is a floor day — never miss twice, never repay debt.");
+  else if(plannedTier && !t)
+    add("calm","Last night you planned a "+plannedTier+" day. Execute the pre-made decision — don't renegotiate it.");
+  if(crunchOn())
+    add("calm","Crunch mode until "+settings.crunchEnd+". Floor days count as full compliance. Zero guilt.");
+  if(today.getDay()===0 && today.getDate()<=7)
+    add("calm","First Sunday — reread the compass, and check the lineup still fits the season.");
+}
+
+// ---------- horizons ----------
+function nextQuarterly(){
+  const months=[9,0,3,6];
+  for(let i=0;i<8;i++){
+    const m=(today.getMonth()+i)%12, y=today.getFullYear()+Math.floor((today.getMonth()+i)/12);
+    if(months.includes(m)){
+      const d=new Date(y,m,1); while(d.getDay()!==0) d.setDate(d.getDate()+1);
+      if(d>=today) return d;
+    }
+  }
+}
+function renderHorizons(){
+  const start=settings.start;
+  const dayN=dayDiff(start,TK)+1;
+  const block=Math.floor((dayN-1)/56), inBlock=((dayN-1)%56)+1;
+  const best=Math.max(bestStreak(),streakCount());
+  const q=nextQuarterly(), qd=Math.ceil((q-today)/864e5);
+  const goal=new Date(2028,6,1), gd=Math.max(0,Math.ceil((goal-today)/864e5));
+  const total=dayDiff(start,"2028-07-01");
+  const el=document.getElementById("horizons");
+  el.innerHTML=`
+    <div><div class="num">${inBlock}<span style="font-size:13px;color:var(--sub)">/56</span></div>
+      <div class="cap">Short — block ${block+1}</div>
+      <div class="bar"><i style="width:${Math.round(inBlock/56*100)}%"></i></div></div>
+    <div><div class="num">${qd}<span style="font-size:13px;color:var(--sub)">d</span></div>
+      <div class="cap">Long — next quarterly<br>${q.toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div>
+    <div><div class="num">${gd}<span style="font-size:13px;color:var(--sub)">d</span></div>
+      <div class="cap">Longest — July 2028</div>
+      <div class="bar"><i style="width:${Math.min(100,Math.round(dayN/total*100))}%"></i></div></div>`;
+  if(best<60){
+    const n=document.createElement("div");
+    n.style.cssText="grid-column:1/-1;text-align:center;font-size:12px;color:var(--sub);margin-top:10px";
+    n.textContent="Longest streak: "+best+" — the 60-day habit line is "+(60-best)+" days away.";
+    el.appendChild(n);
+  }
+}
+
+// ---------- heatmap ----------
+function renderHeat(){
+  const el=document.getElementById("heat"); el.innerHTML="";
+  const s=parse(settings.start);
+  const startSun=addDays(s, -s.getDay());
+  const endSat=addDays(today, 6-today.getDay());
+  const span=Math.round((endSat-startSun)/864e5);
+  const weeks=Math.max(8, Math.round((span+1)/7));
+  for(let w=0; w<weeks; w++){
+    for(let i=0;i<7;i++){
+      const d=addDays(startSun, w*7+i), k=fmt(d);
+      const c=document.createElement("div");
+      c.className="cell";
+      const t=dayTier(k);
+      if(d<=today && t) c.classList.add(t);
+      if(k===TK) c.classList.add("today");
+      c.title=k+(t?" — "+LVNAME[t]:"");
+      el.appendChild(c);
+    }
+  }
+  const lbl=document.getElementById("heatLabel");
+  if(lbl) lbl.textContent="Week 1 at the top — "+weeks+" week"+(weeks===1?"":"s")+" and counting";
+}
+
+// ---------- insights ----------
+function loggedKeys(){ return Object.keys(days).filter(k=>dayTier(k) && k<=TK).sort(); }
+function renderInsights(){
+  const el=document.getElementById("insights"); el.innerHTML="";
+  const keys=loggedKeys(), n=keys.length;
+  const add=(tag,txt)=>{ const d=document.createElement("div"); d.className="insight";
+    d.innerHTML="<span class='tag'>"+tag+"</span>"+txt; el.appendChild(d); };
+
+  if(n<3){ el.innerHTML="<div class='locked'>Log 3 days to unlock your first pattern. 7 days unlocks weekday analysis. 21 days unlocks trend detection. The app can only get as smart as your logging is honest.</div>"; return; }
+
+  const act=lineup();
+  const last30=keys.filter(k=>dayDiff(k,TK)<30);
+  const count=t=>last30.filter(k=>dayTier(k)===t).length;
+  const nz=last30.filter(k=>dayTier(k)!=="none").length;
+  add("Consistency — last 30 days",
+    `<b>${nz}/${last30.length}</b> non-zero (${count("full")} full · ${count("floor")} floor · ${count("none")} none).`);
+
+  const last14=keys.filter(k=>dayDiff(k,TK)<14);
+  if(last14.length>=5 && act.length){
+    let weak=null, weakRate=1.01;
+    act.forEach(c=>{
+      const days14=last14.filter(k=>!benchedOn(c.id,k));
+      if(days14.length<3) return;                       // don't judge a habit on benched days
+      const r=days14.filter(k=>hit(k,c.id)).length/days14.length;
+      if(r<weakRate){ weakRate=r; weak=c; }
+    });
+    if(weak && weakRate<0.5)
+      add("Weakest starter", esc(weak.name)+" is landing only "+Math.round(weakRate*100)+"% of days — attach it to a habit that already sticks, shrink it, or bench it and start something that fits the season.");
+  }
+
+  const liveTrain = catById("train") && !catById("train").benched;
+  const liveDeep  = catById("deep")  && !catById("deep").benched;
+  if(liveTrain && liveDeep){
+    const dw=last30.filter(k=>hit(k,"deep")).length, tr=last30.filter(k=>hit(k,"train")).length;
+    if(tr>=3 && tr-dw>=4)
+      add("Balance","Training is outpacing deep work ("+tr+" vs "+dw+" days). Body is the old comfort zone — the bet was building the same depth in the intellectual work.");
+    else if(dw-tr>=4)
+      add("Balance","Deep work is outpacing training ("+dw+" vs "+tr+" days). Don't let the floor break on the body side — that self-trust is load-bearing.");
+  }
+
+  // lineup churn — a nudge if you're substituting constantly
+  const recentSubs = subs.filter(s=>dayDiff(s.d,TK)<56).length;
+  if(recentSubs>=4)
+    add("Lineup churn", recentSubs+" substitutions in the last 8 weeks. Rotating with the season is the point — rotating every week means the habits aren't the problem, the load is.");
+
+  if(n>=7){
+    const wd=Array.from({length:7},()=>({z:0,t:0}));
+    keys.forEach(k=>{ const g=parse(k).getDay(), t=dayTier(k); wd[g].t++; if(t==="none"||t==="floor") wd[g].z++; });
+    let worst=-1,rate=0;
+    wd.forEach((w,i)=>{ if(w.t>=2 && w.z/w.t>rate){ rate=w.z/w.t; worst=i; } });
+    if(worst>=0 && rate>=0.5)
+      add("Weekday pattern", WD[worst]+"s are your weakest ("+Math.round(rate*100)+"% floor-or-none). Pre-plan "+WD[worst]+" as a floor day — pre-made decisions beat morning negotiations.");
+    else
+      add("Weekday pattern","No weak weekday yet — levels are holding across the week.");
+    const sundays=keys.filter(k=>parse(k).getDay()===0);
+    const shipped=sundays.filter(k=>days[k].ship && days[k].ship.trim()).length;
+    if(sundays.length>=2)
+      add("Shipping", shipped+"/"+sundays.length+" Sundays shipped. "+(shipped/sundays.length>=0.75?"The forcing function is working.":"Shipping weekly is the anti-velocity mechanism — a thin ship still counts."));
+  } else {
+    add("Locked", (7-n)+" more days unlock weekday-pattern analysis.");
+  }
+
+  if(n>=21){
+    const low=last14.filter(k=>["floor","none"].includes(dayTier(k))).length;
+    if(low>=10 && !crunchOn())
+      add("Design check","10+ of the last 14 days were floor-or-none outside crunch mode. Per the playbook: that's a design problem, not a discipline problem — shrink the lineup at Sunday review instead of abandoning it.");
+    const score=k=>{ const v=dayLevels(k); return v.length ? v.reduce((s,x)=>s+SCORE[x],0)/rosterSize(k) : 0; };
+    const prev14=keys.filter(k=>{const d=dayDiff(k,TK); return d>=14&&d<28;});
+    if(prev14.length>=7){
+      const a=last14.reduce((s,k)=>s+score(k),0)/Math.max(1,last14.length);
+      const b=prev14.reduce((s,k)=>s+score(k),0)/prev14.length;
+      const diff=a-b;
+      add("Momentum", diff>0.12?"Trending up — average level is rising versus the prior two weeks.":
+        diff<-0.12?"Trending down versus the prior two weeks. Downshift deliberately (declare crunch or plan floor days) before the system downshifts for you.":
+        "Steady — average level is flat versus the prior two weeks. Boring is the feature.");
+    }
+    const jr=last30.filter(k=>days[k].journal && days[k].journal.trim().length>10).length;
+    add("Judgment record", jr+"/"+last30.length+" days with a real journal entry. "+(jr/Math.max(1,last30.length)>=0.6?"The audit trail is building — this is what quiet confidence gets built from.":"The decision journal is the Mind pillar. One honest sentence beats a blank."));
+  } else if(n>=7){
+    add("Locked", (21-n)+" more days unlock trend detection and the design check.");
+  }
+
+  if(n>=60){
+    const b=Math.max(bestStreak(),streakCount());
+    if(b>=60) add("60-day line","You've crossed the habit line you set. The system is no longer the scaffolding — it's you. Protect it like a varsity spot.");
+  }
+}
+
+// ---------- parking lot ----------
+const parkIn=document.getElementById("parkInput");
+parkIn.onkeydown=e=>{
+  if(e.key==="Enter" && parkIn.value.trim()){
+    park.unshift({date:TK, text:parkIn.value.trim()});
+    parkIn.value=""; save(K.park,park); renderPark();
+  }
+};
+function renderPark(){
+  const el=document.getElementById("parkList"); el.innerHTML="";
+  if(!park.length){ el.innerHTML="<div class='locked' style='padding-top:8px'>Empty. When the pivot itch hits: two minutes here, then back to the thread.</div>"; return; }
+  park.forEach((p,i)=>{
+    const row=document.createElement("div"); row.className="park-item";
+    const age=dayDiff(p.date,TK);
+    row.innerHTML=`<span style="flex:1">${esc(p.text)}${age>=28?" <span class='hear'>· earned a hearing at the quarterly</span>":""}</span>
+      <span class="d">${p.date.slice(5)}</span>`;
+    const x=document.createElement("button"); x.textContent="×";
+    x.onclick=()=>{ park.splice(i,1); save(K.park,park); renderPark(); };
+    row.appendChild(x); el.appendChild(row);
+  });
+}
+
+// ---------- crunch mode ----------
+const cBtn=document.getElementById("crunchBtn"), cInfo=document.getElementById("crunchInfo"), cEnd=document.getElementById("crunchEnd");
+function renderCrunch(){
+  const on=crunchOn();
+  cBtn.className="chk"+(on?" on":""); cBtn.textContent=on?"On":"Off";
+  cInfo.textContent=on?"until "+settings.crunchEnd+" — floor days count as wins":"declare it with an end date; never open-ended";
+}
+cBtn.onclick=()=>{
+  if(crunchOn()){ settings.crunchEnd=null; save(K.settings,settings); renderCrunch(); renderBanners(); renderInsights(); }
+  else{
+    cEnd.style.display="inline-block";
+    cEnd.min=TK;
+    cEnd.onchange=()=>{ if(cEnd.value){ settings.crunchEnd=cEnd.value; save(K.settings,settings);
+      cEnd.style.display="none"; renderCrunch(); renderBanners(); renderInsights(); } };
+    cEnd.focus(); cEnd.showPicker && cEnd.showPicker();
+  }
+};
+
+// ---------- export / import ----------
+function exportData(){
+  const blob=new Blob([JSON.stringify({days,settings,park,cats,subs,exported:TK},null,1)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="floor-backup-"+TK+".json"; a.click();
+}
+function importData(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const d=JSON.parse(r.result);
+    if(d.days){ days=d.days; settings=d.settings||settings; park=d.park||[];
+      if(Array.isArray(d.cats) && d.cats.length) save(K.cats, d.cats);
+      if(Array.isArray(d.subs)) save(K.subs, d.subs);
+      save(K.days,days); save(K.settings,settings); save(K.park,park); location.reload(); }
+  }catch(e){ alert("Couldn't read that backup file."); } };
+  r.readAsText(f);
+}
+
+// ---------- init ----------
+saveCats(); save(K.settings, settings);
+setDay(TK);
+renderStreak(); renderCats(); renderBanners(); renderHorizons();
+renderHeat(); renderInsights(); renderPark(); renderCrunch(); renderLog();
+save(K.days,days);
+
+if("serviceWorker" in navigator && location.protocol==="https:")
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
