@@ -1,7 +1,7 @@
 // Floor — offline cache. Bump the version string whenever index.html changes.
-const C = "floor-v8";
+const C = "floor-v8-custom-start-1";
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(C).then(c => c.addAll(["./", "index.html", "icon.png"])));
+  e.waitUntil(caches.open(C).then(c => c.addAll(["./", "index.html"])));
   self.skipWaiting();
 });
 self.addEventListener("activate", e => {

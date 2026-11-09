@@ -319,6 +319,19 @@
   <!-- HEATMAP -->
   <div class="card">
     <div class="label" id="heatLabel">Every week — day one at the top</div>
+    <div style="margin-bottom:14px;font-size:13px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="customHeatStart" role="switch" onchange="toggleHeatStart(this.checked)"> Custom start date
+      </label>
+      <div id="heatStartControls" style="margin-top:10px" hidden>
+        <label for="heatStartDate" style="display:block;color:var(--sub);margin-bottom:6px">Show boxes starting from</label>
+        <div class="row" style="flex-wrap:wrap">
+          <input type="date" id="heatStartDate" style="width:auto" onchange="changeHeatStart(this.value)">
+          <button class="btn" onclick="changeHeatStart(TK)">Use today</button>
+        </div>
+      </div>
+      <div style="color:var(--sub);font-size:11.5px;margin-top:8px">Only changes the boxes shown. Your history and streaks stay saved.</div>
+    </div>
     <div class="heatdow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
     <div class="heat" id="heat"></div>
     <div class="legend">
@@ -986,27 +999,51 @@ function renderHorizons(){
 }
 
 // ---------- heatmap ----------
+function validHeatStart(value){
+  return typeof value==="string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !isNaN(parse(value).getTime()) && fmt(parse(value))===value && value<=TK;
+}
+function toggleHeatStart(on){
+  settings.customHeatStart=on;
+  if(on && !validHeatStart(settings.heatStart)) settings.heatStart=TK;
+  save(K.settings,settings); renderHeat();
+}
+function changeHeatStart(value){
+  if(!validHeatStart(value)){
+    alert("Choose today or an earlier date."); renderHeat(); return;
+  }
+  settings.heatStart=value;
+  save(K.settings,settings); renderHeat();
+}
 function renderHeat(){
   const el=document.getElementById("heat"); el.innerHTML="";
-  const s=parse(settings.start);
-  const startSun=addDays(s, -s.getDay());
-  const endSat=addDays(today, 6-today.getDay());
-  const span=Math.round((endSat-startSun)/864e5);
-  const weeks=Math.max(8, Math.round((span+1)/7));
-  for(let w=0; w<weeks; w++){
+  const custom=!!settings.customHeatStart;
+  const chosen=validHeatStart(settings.heatStart)?settings.heatStart:TK;
+  const first=custom?chosen:settings.start;
+  document.getElementById("customHeatStart").checked=custom;
+  document.getElementById("heatStartControls").hidden=!custom;
+  const input=document.getElementById("heatStartDate");
+  input.max=TK; input.value=chosen;
+  const s=parse(first);
+  const startSun=addDays(s,-s.getDay());
+  const endSat=addDays(today,6-today.getDay());
+  const weeks=Math.max(1,Math.round((dayDiff(fmt(startSun),fmt(endSat))+1)/7));
+  for(let w=0;w<weeks;w++){
     for(let i=0;i<7;i++){
-      const d=addDays(startSun, w*7+i), k=fmt(d);
-      const c=document.createElement("div");
-      c.className="cell";
-      const t=dayTier(k);
-      if(d<=today && t) c.classList.add(t);
-      if(k===TK) c.classList.add("today");
-      c.title=k+(t?" — "+LVNAME[t]:"");
+      const d=addDays(startSun,w*7+i), k=fmt(d);
+      const c=document.createElement("div"); c.className="cell";
+      // Invisible spacers keep dates aligned with their weekday headings.
+      if(k<first || k>TK){ c.style.visibility="hidden"; c.setAttribute("aria-hidden","true"); }
+      else{
+        const t=dayTier(k);
+        if(t) c.classList.add(t);
+        if(k===TK) c.classList.add("today");
+        c.title=k+(t?" — "+LVNAME[t]:" — not logged");
+      }
       el.appendChild(c);
     }
   }
-  const lbl=document.getElementById("heatLabel");
-  if(lbl) lbl.textContent="Week 1 at the top — "+weeks+" week"+(weeks===1?"":"s")+" and counting";
+  document.getElementById("heatLabel").textContent="Since "+shortDate(first)+" — "+weeks+" week"+(weeks===1?"":"s");
 }
 
 // ---------- insights ----------
